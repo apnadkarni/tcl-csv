@@ -1,0 +1,130 @@
+text {
+    ((= chap_tclcsv_ref "The tclcsv extension"))
+    :toc: 
+    :toclevels: 5
+    :toc-title: Content
+    :icons:
+    :sectnums:
+    :sectlinks:
+    :imagesdir: ./images
+    :experimental:
+    :linkcss:
+    
+    ((author "Ashok P. Nadkarni"))
+}
+
+
+text {
+    == Introduction
+
+    The `tclcsv` extension provides a fast and flexible means of
+    reading text files in _Comma Separated Value_ (CSV) format.
+
+    It currently provides a single command, `read_csv` that reads
+    CSV data from a channel.
+}
+
+text {
+    == Command reference
+
+    All commands are located in the `tclcsv` namespace.
+
+    === Commands
+
+    ((cmddef tclcsv_read_csv "read_csv ?options? _CHANNEL_"))
+
+    The command reads data from the specified channel and returns
+    a Tcl list each element of which is a list corresponding to
+    one row in the read CSV data. The caller should have appropriately
+    positioned the channel read pointer and configured its encoding before
+    calling this command.
+
+    The command will normally read all data from
+    the channel until EOF is encountered and return the corresponding
+    rows. The following options modify this behaviour:
+
+    ((.Table tab_tclcsv_rowopts "Options for filtering rows"))
+    [cols="20,80"]
+    |===
+
+    |`-nrows _NROWS_`
+    |If specified, stops after _NROWS_ rows are read. Note however that
+    it does not guarantee that the channel read pointer is placed just beyond
+    the last read data.
+
+    |`-skiprows _ROWLIST_`
+    |If specified, _ROWLIST_ must be a list of integer
+    row numbers (first row being at position 0). The corresponding rows
+    are skipped and not included in the returned data.
+
+    |`-startrow _ROWNUM_`
+    |If specified, the returned data only includes rows after the first
+    _ROWNUM_ rows.
+    
+    |===
+}
+
+text {
+
+    There are several variations of the CSV format. The following options
+    specify what variant is expected.
+    
+    ((.Table tab_tclcsv_rowopts "Options for filtering rows"))
+    [cols="20,80"]
+    |===
+
+    |`-comment _COMMENTCHAR_`
+    |Specifies the character to use as a comment leader. All characters
+    on a line after _COMMENTCHAR_ are ignored. _COMMENTCHAR_ must
+    be an ASCII character. Defaults to `#`. If _COMMENTCHAR_ is
+    the empty string, comment recognition is disabled.
+
+    |`-delimiter _DELIMCHAR_`
+    |Specifies the delimiter character that separates fields. Defaults
+    to `,`.
+
+    |`-doublequote _BOOLEAN_`
+    |Controls how the quote character inside a field value is treated.
+    If specified as `true` (default), quote characters in a field
+    are expected to be represented by doubling them. If `false`,
+    they are expected to be preceded with an escape character.
+
+    |`-escape _ESCCHAR_`
+    |If specified, any character appearing after _ESCCHAR_ is treated
+    as an ordinary character with no special meaning. If unspecified
+    or specified as an empty string, the escaping mechanism is disabled.
+    _ESCCHAR_ must be an ASCII character or an empty string.
+
+    |`-quote _QUOTECHAR_`
+    |Specifies the character to use for quoting when a field contains
+    special characters such as the delimiter or line terminators.
+    Defaults to the double quote character.
+
+    |`-skipblanklines _BOOLEAN_`
+    |If specified as `true`, empty lines are ignored. If `false` (default)
+    empty lines are treated as rows with no fields.
+
+    |`-skipleadingspace _BOOLEAN_`
+    |If specified as `true`, leading whitespace in fields is stripped.
+    If `false` (default), it is retained.
+    
+    |`-terminator _TERMCHAR_`
+    Specifies the character to use to terminate a row. By default,
+    each input line is a treated as a row.
+    
+    |===
+}
+text {
+    == License
+
+    See the file LICENSE in the source distribution.
+}
+
+text {
+    == Acknowledgements
+
+    The core of the CSV parsing code is adapted from the CSV parser
+    implemented by the Python http://pandas.pydata.org[pandas] library.
+
+    The hashing code is from https://github.com/attractivechaos/klib[attractivechaos].
+}
