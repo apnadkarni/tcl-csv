@@ -1,0 +1,25 @@
+#
+# Copyright (c) 2012-2015, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+#
+
+package require critcl 3.1
+
+critcl::license "Ashok P. Nadkarni"
+critcl::summary "Tcl CSV extension"
+critcl::description {
+    Implements commands for processing CSV data.
+}
+
+critcl::clean_cache
+critcl::tcl 8.5
+
+critcl::csources csv.c
+critcl::cheaders csv.h
+
+critcl::ccommand tclcsv::csv_read csv_read_cmd
+
+package provide tclcsv 0.1
+critcl::load
