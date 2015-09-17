@@ -1418,14 +1418,14 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
         "-comment", "-delimiter", "-doublequote", "-escape",
         "-ignoreerrors", "-nrows", "-quote", "-quoting",
         "-skipblanklines", "-skipleadingspace", "-skiprows",
-        "-startline", "-terminator",
+        "-startrow", "-terminator",
         NULL
     };
     enum switches_e {
         CSV_COMMENT, CSV_DELIMITER, CSV_DOUBLEQUOTE, CSV_ESCAPE,
         CSV_IGNOREERRORS, CSV_NROWS, CSV_QUOTE, CSV_QUOTING,
         CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPROWS,
-        CSV_STARTLINE, CSV_TERMINATOR,
+        CSV_STARTROW, CSV_TERMINATOR,
     };
 
     if (objc < 2) {
@@ -1510,7 +1510,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
                 }
             }
             break;
-        case CSV_STARTLINE:
+        case CSV_STARTROW:
             res = Tcl_GetIntFromObj(ip, objv[i+1], &ival);
             if (res != TCL_OK)
                 goto invalid_option_value;
