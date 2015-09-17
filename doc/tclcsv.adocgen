@@ -22,6 +22,14 @@ text {
 
     It currently provides a single command, `read_csv` that reads
     CSV data from a channel.
+
+    [NOTE]
+    The `tcllib` distribution also has a package `csv` that is capable
+    of reading and writing CSV files. It has the advantage of being
+    a pure Tcl package but conversely has much lower performance which
+    is an issue only for larger files. It is also a little less flexible
+    in terms of input syntax.
+    
 }
 
 text {
@@ -109,7 +117,7 @@ text {
     If `false` (default), it is retained.
     
     |`-terminator _TERMCHAR_`
-    Specifies the character to use to terminate a row. By default,
+    |Specifies the character to use to terminate a row. By default,
     each input line is a treated as a row.
     
     |===
