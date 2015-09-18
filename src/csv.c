@@ -394,13 +394,13 @@ typedef int (*parser_op)(parser_t *self, size_t line_limit);
         TRACE(("_TOKEN_CLEANUP: datapos: %d, datalen: %d\n", self->datapos, self->datalen)); \
     } while (0)
 
-int skip_this_line(parser_t *self, int64_t rownum) {
+int skip_this_line(parser_t *self, int64_t linenum) {
     if (self->skipset != NULL) {
         return ( kh_get_int64((kh_int64_t*) self->skipset, self->file_lines) !=
                  ((kh_int64_t*)self->skipset)->n_buckets );
     }
     else {
-        return ( rownum <= self->skip_first_N_rows );
+        return ( linenum <= self->skip_first_N_rows );
     }
 }
 
@@ -1433,14 +1433,14 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
     static const char *switches[] = {
         "-comment", "-delimiter", "-doublequote", "-escape",
         "-ignoreerrors", "-nrows", "-quote", "-quoting",
-        "-skipblanklines", "-skipleadingspace", "-skiprows",
+        "-skipblanklines", "-skipleadingspace", "-skiplines",
         "-startline", "-terminator",
         NULL
     };
     enum switches_e {
         CSV_COMMENT, CSV_DELIMITER, CSV_DOUBLEQUOTE, CSV_ESCAPE,
         CSV_IGNOREERRORS, CSV_NROWS, CSV_QUOTE, CSV_QUOTING,
-        CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPROWS,
+        CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPLINES,
         CSV_STARTLINE, CSV_TERMINATOR,
     };
 
@@ -1509,7 +1509,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
             else
                 goto invalid_option_value;
             break;
-        case CSV_SKIPROWS:
+        case CSV_SKIPLINES:
             res = Tcl_ListObjGetElements(ip, objv[i+1], &len, &objs);
             if (res != TCL_OK)
                 goto vamoose;
