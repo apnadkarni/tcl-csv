@@ -84,8 +84,8 @@ text {
     |`-comment _COMMENTCHAR_`
     |Specifies the character to use as a comment leader. All characters
     on a line after _COMMENTCHAR_ are ignored. _COMMENTCHAR_ must
-    be an ASCII character. Defaults to `#`. If _COMMENTCHAR_ is
-    the empty string, comment recognition is disabled.
+    be an ASCII character. If _COMMENTCHAR_ is
+    the empty string (default), comment recognition is disabled.
 
     |`-delimiter _DELIMCHAR_`
     |Specifies the delimiter character that separates fields. Defaults

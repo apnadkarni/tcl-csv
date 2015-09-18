@@ -16,6 +16,10 @@ critcl::description {
 critcl::clean_cache
 critcl::tcl 8.5
 
+critcl::ccode {
+    #include "csv.h"
+}
+
 critcl::csources csv.c
 critcl::cheaders csv.h
 

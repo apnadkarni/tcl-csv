@@ -24,15 +24,12 @@ static void free_if_not_null(void **ptr) {
     }
 }
 
-void parser_set_default_options(parser_t *self) {
-
-    // For tokenization
-    self->state = START_RECORD;
-
+void parser_set_default_options(parser_t *self)
+{
     self->delimiter = ','; // XXX
     self->delim_whitespace = 0;
 
-    self->doublequote = 0;
+    self->doublequote = 1;
     self->quotechar = '"';
     self->escapechar = 0;
 
@@ -47,18 +44,20 @@ void parser_set_default_options(parser_t *self) {
     self->error_bad_lines = 0;
     self->warn_bad_lines = 0;
 
-    self->commentchar = '#';
+    self->commentchar = '\0';
 
     self->skipset = NULL;
     self-> skip_first_N_rows = -1;
     self->skip_footer = 0;
 }
 
-parser_t* parser_new() {
+parser_t* parser_new()
+{
     return (parser_t*) calloc(1, sizeof(parser_t));
 }
 
-int parser_cleanup(parser_t *self) {
+int parser_cleanup(parser_t *self)
+{
     int    status = 0;
 
     // XXX where to put this
@@ -93,7 +92,8 @@ int parser_cleanup(parser_t *self) {
     return status;
 }
 
-int parser_init(parser_t *self) {
+int parser_init(parser_t *self)
+{
     self->error_msg = NULL;
     self->warn_msg = NULL;
 
@@ -116,19 +116,19 @@ int parser_init(parser_t *self) {
     
     self->state = START_RECORD;
 
-    self->commentchar = '\0';
-
     return 0;
 }
 
 
-void parser_free(parser_t *self) {
+void parser_free(parser_t *self)
+{
     // opposite of parser_init
     parser_cleanup(self);
     free(self);
 }
 
-static int P_INLINE end_field(parser_t *self) {
+static int P_INLINE end_field(parser_t *self)
+{
     Tcl_ListObjAppendElement(NULL, self->rowObj, self->fieldObj);
     self->fieldObj = Tcl_NewObj();
     Tcl_IncrRefCount(self->fieldObj);
@@ -136,7 +136,8 @@ static int P_INLINE end_field(parser_t *self) {
     return 0;
 }
 
-static void append_warning(parser_t *self, const char *msg) {
+static void append_warning(parser_t *self, const char *msg)
+{
     int ex_length;
     int length = strlen(msg);
     void *newptr;
@@ -154,7 +155,8 @@ static void append_warning(parser_t *self, const char *msg) {
     }
 }
 
-static int end_line(parser_t *self) {
+static int end_line(parser_t *self)
+{
     int fields;
     int ex_fields = self->expected_fields;
 
@@ -291,7 +293,8 @@ int parser_add_skiprow(parser_t *self, int64_t row) {
     return 0;
 }
 
-int parser_set_skipfirstnrows(parser_t *self, int64_t nrows) {
+int parser_set_skipfirstnrows(parser_t *self, int64_t nrows)
+{
     // self->file_lines is zero based so subtract 1 from nrows
     if (nrows > 0) {
         self->skip_first_N_rows = nrows - 1;
@@ -300,7 +303,8 @@ int parser_set_skipfirstnrows(parser_t *self, int64_t nrows) {
     return 0;
 }
 
-static int parser_buffer_bytes(parser_t *self, size_t nbytes) {
+static int parser_buffer_bytes(parser_t *self, size_t nbytes)
+{
     int status, chars_read;
 
     status = 0;
@@ -1282,7 +1286,8 @@ linelimit:
     return 0;
 }
 
-static int parser_handle_eof(parser_t *self) {
+static int parser_handle_eof(parser_t *self)
+{
     TRACE(("handling eof, datalen: %d, pstate: %d\n", self->datalen, self->state))
     if (self->datalen == 0 && (self->state != START_RECORD)) {
         // test cases needed here
@@ -1314,7 +1319,8 @@ static int parser_handle_eof(parser_t *self) {
     return -1;
 }
 
-void debug_print_parser(parser_t *self) {
+void debug_print_parser(parser_t *self)
+{
     int line;
 
     for (line = 0; line < self->lines; ++line)
@@ -1337,7 +1343,8 @@ void debug_print_parser(parser_t *self) {
   all : tokenize all the data vs. certain number of rows
  */
 
-int _tokenize_helper(parser_t *self, size_t nrows, int all) {
+int _tokenize_helper(parser_t *self, size_t nrows, int all)
+{
     parser_op tokenize_bytes;
 
     int status = 0;
@@ -1395,12 +1402,14 @@ int _tokenize_helper(parser_t *self, size_t nrows, int all) {
     return status;
 }
 
-int tokenize_nrows(parser_t *self, size_t nrows) {
+int tokenize_nrows(parser_t *self, size_t nrows)
+{
     int status = _tokenize_helper(self, nrows, 0);
     return status;
 }
 
-int tokenize_all_rows(parser_t *self) {
+int tokenize_all_rows(parser_t *self) 
+{
     int status = _tokenize_helper(self, -1, 1);
     return status;
 }
@@ -1439,8 +1448,8 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
 
     parser = parser_new();
     parser->chunksize = 256*1024; /* TBD - chunksize */
-    parser_set_default_options(parser);
     parser_init(parser);
+    parser_set_default_options(parser);
     parser->chan = chan;
 
     nrows = 0;
