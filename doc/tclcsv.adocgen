@@ -60,10 +60,11 @@ text {
     it does not guarantee that the channel read pointer is placed just beyond
     the last read data.
 
-    |`-skiprows _ROWLIST_`
-    |If specified, _ROWLIST_ must be a list of integer
-    row numbers (first row being at position 0). The corresponding rows
-    are skipped and not included in the returned data.
+    |`-skiplines _LINELIST_`
+    |If specified, _LINELIST_ must be a list of integer
+    line numbers (first line being at position 0). The corresponding lines
+    are skipped and not included in the returned data. The line numbering
+    includes commented lines.
 
     |`-startline _LINENUM_`
     |If specified, the first _LINENUM_ files of input are ignored.
@@ -121,6 +122,11 @@ text {
     each input line is a treated as a row.
     
     |===
+
+    [NOTE]
+    The command does not require that all rows have the same number of
+    fields. If required, the caller has to check that all returned rows
+    have the same number of elements.
 }
 text {
     == License
