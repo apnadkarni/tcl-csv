@@ -1560,7 +1560,7 @@ vamoose: /* res should contain status */
     return res;
 
 invalid_option_value: /* objv[i] should be the invalid option */
-    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s", objv[i]));
+    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s", Tcl_GetString(objv[i])));
     res = TCL_ERROR;
     goto vamoose;
 }

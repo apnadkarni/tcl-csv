@@ -39,7 +39,7 @@ text {
 
     === Commands
 
-    ((cmddef tclcsv_read_csv "read_csv ?options? _CHANNEL_"))
+    ((cmddef tclcsv_csv_read "csv_read ?options? _CHANNEL_"))
 
     The command reads data from the specified channel and returns
     a Tcl list each element of which is a list corresponding to
@@ -113,7 +113,7 @@ text {
     empty lines are treated as rows with no fields.
 
     |`-skipleadingspace _BOOLEAN_`
-    |If specified as `true`, leading whitespace in fields is stripped.
+    |If specified as `true`, leading space characters in fields are stripped.
     If `false` (default), it is retained.
     
     |`-terminator _TERMCHAR_`
