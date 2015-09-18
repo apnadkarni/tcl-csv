@@ -65,9 +65,9 @@ text {
     row numbers (first row being at position 0). The corresponding rows
     are skipped and not included in the returned data.
 
-    |`-startrow _ROWNUM_`
-    |If specified, the returned data only includes rows after the first
-    _ROWNUM_ rows.
+    |`-startline _LINENUM_`
+    |If specified, the first _LINENUM_ files of input are ignored.
+    Note this includes commented lines if comments are enabled.
     
     |===
 }

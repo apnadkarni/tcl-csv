@@ -161,7 +161,14 @@ static int end_line(parser_t *self)
     int ex_fields = self->expected_fields;
 
 #ifndef TBD
+
     /* TBD - don't deal with special cases */
+    if (self->state == SKIP_LINE) {
+        TRACE(("end_line: Skipping row %d\n", self->file_lines));
+        // increment file line count
+        self->file_lines++;
+        return 0;
+    } 
     fields = 0;
     Tcl_ListObjLength(NULL, self->rowObj,  &fields);
     Tcl_ListObjAppendElement(NULL, self->rowsObj, self->rowObj);
@@ -1427,14 +1434,14 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
         "-comment", "-delimiter", "-doublequote", "-escape",
         "-ignoreerrors", "-nrows", "-quote", "-quoting",
         "-skipblanklines", "-skipleadingspace", "-skiprows",
-        "-startrow", "-terminator",
+        "-startline", "-terminator",
         NULL
     };
     enum switches_e {
         CSV_COMMENT, CSV_DELIMITER, CSV_DOUBLEQUOTE, CSV_ESCAPE,
         CSV_IGNOREERRORS, CSV_NROWS, CSV_QUOTE, CSV_QUOTING,
         CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPROWS,
-        CSV_STARTROW, CSV_TERMINATOR,
+        CSV_STARTLINE, CSV_TERMINATOR,
     };
 
     if (objc < 2) {
@@ -1519,7 +1526,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
                 }
             }
             break;
-        case CSV_STARTROW:
+        case CSV_STARTLINE:
             res = Tcl_GetIntFromObj(ip, objv[i+1], &ival);
             if (res != TCL_OK)
                 goto invalid_option_value;
