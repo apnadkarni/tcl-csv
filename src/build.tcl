@@ -15,7 +15,8 @@ switch -exact -- [lindex $argv 0] {
         critcl::app::main [list -pkg -libdir [file join $buildarea lib] -includedir [file join $buildarea include] -cache [file join $buildarea cache] -clean {*}[lrange $argv 1 end] tclcsv tclcsv.critcl]
     }
     tea {
-        critcl::app::main [list -tea -libdir [file join $buildarea lib] {*}[lrange $argv 1 end] tclcsv tclcsv.critcl]
+        set buildarea [file normalize [file join [pwd] .. build]]
+        critcl::app::main [list -tea -libdir [file join $buildarea tea] {*}[lrange $argv 1 end] tclcsv tclcsv.critcl]
     }
     default {
         usage

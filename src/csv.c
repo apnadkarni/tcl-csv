@@ -1546,6 +1546,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
                 parser->doublequote = ival;
                 break;
             case CSV_IGNOREERRORS:
+                /* TBD - currently not used */
                 parser->error_bad_lines = ival;
                 break;
             case CSV_SKIPBLANKLINES:

@@ -3,10 +3,9 @@ text {
     :toc: 
     :toclevels: 5
     :toc-title: Content
-    :icons:
+    :icons:  font
     :sectnums:
     :sectlinks:
-    :imagesdir: ./images
     :experimental:
     :linkcss:
     
@@ -60,6 +59,10 @@ text {
     it does not guarantee that the channel read pointer is placed just beyond
     the last read data.
 
+    |`-skipblanklines _BOOLEAN_`
+    |If specified as `true`, empty lines are ignored. If `false` (default)
+    empty lines are treated as rows with no fields.
+
     |`-skiplines _LINELIST_`
     |If specified, _LINELIST_ must be a list of integer
     line numbers (first line being at position 0). The corresponding lines
@@ -108,10 +111,6 @@ text {
     |Specifies the character to use for quoting when a field contains
     special characters such as the delimiter or line terminators.
     Defaults to the double quote character.
-
-    |`-skipblanklines _BOOLEAN_`
-    |If specified as `true`, empty lines are ignored. If `false` (default)
-    empty lines are treated as rows with no fields.
 
     |`-skipleadingspace _BOOLEAN_`
     |If specified as `true`, leading space characters in fields are stripped.
