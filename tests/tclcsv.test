@@ -1,0 +1,135 @@
+package require tcltest
+package require tcl::chan::string
+lappend auto_path ../build/lib
+package require tclcsv
+
+# Tests modeled after test_csv.py in the Python distro.
+
+proc makechan s {
+    set fd [tcl::chan::string $s]
+    # Giv eback string as is without chaning cr lfs
+    fconfigure $fd -translation lf
+    return $fd
+}
+
+proc badoptval {opt arg} {
+    tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
+}
+
+proc t {text data expected args} {
+    tcltest::test tclcsv-[incr ::testnum] $text -setup "set fd \[makechan [list $data]\]" -body "tclcsv::csv_read $args \$fd" -cleanup "close \$fd" -result $expected
+}
+
+proc err {text data expected args} {
+    tcltest::test tclcsv-err-[incr ::testnum] $text -setup "set fd \[makechan [list $data]\]" -body "tclcsv::csv_read $args \$fd" -cleanup "close \$fd" -result $expected -returnCodes error
+}
+
+set lftext "a,b c,d\n  e,f  ,g\n\n  \n,,\n#,comment,\nx,#comment\ny,z#comment"
+set crlftext [string map [list \n \r\n] $lftext]
+
+set testnum 0
+
+t "Empty input" {} {}
+t "Basic text" $lftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
+t "Basic text" $crlftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
+
+# Skip field whitespace
+t "-skipleadingspace true" $lftext {{a {b c} d} {e {f  } g} {} {{}} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -skipleadingspace true
+t "-skipleadingspace 1" $lftext {{a {b c} d} {e {f  } g} {} {{}} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -skipleadingspace 1
+t "-skipleadingspace 0" $crlftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
+t "-skipleadingspace 0 tabs" "\t\ta,b\t\t\nc\t\t,\t\td\n" [list [list \t\ta b\t\t] [list c\t\t \t\td]]
+t "-skipleadingspace true tabs" "\t\ta,b\t\t\nc\t\t,\t\td\n" [list [list \t\ta b\t\t] [list c\t\t \t\td]] -skipleadingspace true
+
+# End-of-line tests
+t "Single line" "a,b" {{a b}}
+t "Single line\\r\\n" "a,b\r\n" {{a b}}
+t "Single line\\r" "a,b\r" {{a b}}
+t "Single line\\n" "a,b\n" {{a b}}
+t "Single line\\n\\r" "a,b\n\r" {{a b} {}}
+t "Single line\\r\\n" "a,b\r\n" {{a b}}
+badoptval -terminator ""
+badoptval -terminator "xx"
+badoptval -terminator \x80
+t "-terminator" "a,bxc,xdx,e" {{a b} {c {}} d {{} e}} -terminator x
+t "-terminator treating \\r\\n as ordinary chars" "a,\nbxc,x\r\ndx,e" [list [list a \nb] [list c {}] [list \r\nd] [list {} e]] -terminator x
+t "-terminator" "a,\nbxc,x\r\ndx,ex" [list [list a \nb] [list c {}] [list \r\nd] [list {} e]] -terminator x
+
+# Comment tests
+# Note that a line beginning with # is entirely ignored
+t "-comment #" $lftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {x {}} {y z}} -comment #
+t "-comment # with blanks" "# comment,x\n  #comment, x" [list [list {  }]] -comment #
+    
+# Delimiter tests
+badoptval -delimiter AA
+badoptval -delimiter \x80
+badoptval -delimiter ""
+t "-delimiter unspecified" "abc,def ghi,\n xyz" {{abc {def ghi} {}} {{ xyz}}}
+t "-delimiter space" "abc,def ghi,\n xyz" {{abc,def ghi,} {{} xyz}} -delimiter { }
+t "Consecutive delimiter" ",,,\r\n,,\r\n" {{{} {} {} {}} {{} {} {}}}
+t "Consecutive -delimiter \\t" "\t\t\t\r\n\t\t\r\n" {{{} {} {} {}} {{} {} {}}} -delimiter \t
+t "-delimiter tab" [string map [list , \t] $lftext] {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -delimiter \t
+
+# Quoting tests
+badoptval -quote "aa"
+badoptval -quote \x80
+t "Default quotes" "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"" [list [list a b,c d] [list e,f g h\ni]]
+t "-quote \"\"" "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"" [list [list a \"b c\" d] [list \"e f\" g \"h] [list i\"]] -quote ""
+t "-quote '" "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"" [list [list a \"b c\" d] [list \"e f\" g \"h] [list i\"]] -quote "'"
+t "Default quotes" "a,'b,c',d\n'e,f',g,'h\ni'" [list [list a b,c d] [list e,f g h\ni]] -quote "'"
+
+# Skip blank lines
+badoptval -skipblanklines ""
+badoptval -skipblanklines nonboolean
+t "Skip blank lines" " \n\n  \n" [list [list { }] [list ] [list {  }]]
+t "-skipblanklines 0" " \n\n  \nabc,def" [list [list { }] [list ] [list {  }] [list abc def]] -skipblanklines 0
+t "-skipblanklines true" " \n\n  \nabc,def" [list [list abc def]] -skipblanklines true
+
+# Escape character
+badoptval -escape AA
+badoptval -escape \x80
+t "No escape (default)" "a\\,b\\,c\\\n\n\\d,\\e" [list [list "a\\" "b\\" "c\\"] [list ] [list \\d \\e]]
+t "-escape \\" "a\\,b\\,c\\\n\n\\d,\\e" [list [list a,b,c\n] [list d e]] -escape \\
+t "-escape ^" "a^,b^,c^\n\n^d,^e" [list [list a,b,c\n] [list d e]] -escape ^
+
+# -doublequote
+badoptval -doublequote ""
+badoptval -doublequote nonboolean
+t "-doublequote (default)" "a,\"b\"\"c\"\nd" [list [list a "b\"c"] [list d]]
+t "-doublequote true" "a,\"b\"\"c\"\nd" [list [list a "b\"c"] [list d]] -doublequote true
+# The following test requires some explanation. When -doublequote is false,
+# the first " matches the one following b and encloses the string b. Subsequent
+# " characters do NOT enclose a string and are treated as they are.
+t "-doublequote false" "a,\"b\"\"c\"\nd" [list [list a "b\"c\""] [list d]] -doublequote false
+
+# -startline
+badoptval -startline ""
+badoptval -startline noninteger
+t "-startline 0" "a,b\nc,d,\ne,f" {{a b} {c d {}} {e f}} -startline 0
+t "-startline 2" "a,b\nc,d,\ne,f" {{e f}} -startline 2
+t "-startline 2 -comment #" "#,comment\na,b\nc,d,\n#comment\ne,f" {{c d {}} {e f}} -startline 2 -comment #
+t "-startline -1" "a,b\nc,d,\ne,f" {{a b} {c d {}} {e f}} -startline -1
+t "-startline end" "a,b\nc,d,\ne,f" {} -startline 4
+
+# -skiplines
+badoptval -skiplines {-1}
+err "-skiplines {noninteger}" "" {expected integer but got "noninteger"}  -skiplines {noninteger}
+t "-skiplines {}" "a,b\nc,d,\ne,f" {{a b} {c d {}} {e f}} -skiplines {}
+t "-skiplines {1 2 5}" "a,b\nc,d,\ne,f\ng,h" {{a b} {g h}} -skiplines {1 2 5}
+t "-skiplines {3 2 1 0}" "a,b\nc,d,\ne,f\ng,h" {} -skiplines {3 2 1 0}
+t "-skiplines {1 2 5}" "#comment\na,b\nc,d,\ne,f\ng,h" {{e f} {g h}} -skiplines {1 2 5} -comment #
+
+# -nrows
+badoptval -nrows notanint
+badoptval -nrows {}
+badoptval -nrows {1 2}
+t "-nrows 0" "line0\nline1\nline2\nline3" {} -nrows 0
+t "-nrows 2" "line0\nline1\nline2\nline3" {line0 line1} -nrows 2
+t "-nrows 5" "line0\nline1\nline2\nline3" {line0 line1 line2 line3} -nrows 5
+t "-nrows 2 -comment" "#comment\nline0\nline1\nline2\nline3" {line0 line1} -nrows 2 -comment #
+t "-nrows 2 -skiplines 1" "line0\nline1\nline2\nline3" {line0 line3} -nrows 2 -skiplines {2 1}
+t "-nrows 2 -skiplines 1 -comment #" "#comment\nline0\nline1\nline2\nline3" {line2 line3} -nrows 2 -skiplines {2 1} -comment #
+t "-nrows 2 -skiplines 1 -comment #" "line0\n#comment\nline1\nline2\nline3" {line0 line2} -nrows 2 -skiplines {2 1} -comment #
+
+# TBD - size tests (large fields/lines)
+
+tcltest::cleanupTests
