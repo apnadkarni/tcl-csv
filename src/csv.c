@@ -1459,7 +1459,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
     parser_set_default_options(parser);
     parser->chan = chan;
 
-    nrows = 0;
+    nrows = -1;
     res = TCL_ERROR;
     for (i = 1; i < objc-1; i += 2) {
 	if (Tcl_GetIndexFromObj(ip, objv[i], switches, "option", 0, &opt)
@@ -1560,7 +1560,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
     }
     
     /* Note res == TCL_ERROR at this point */
-    if (nrows) { 
+    if (nrows >= 0) { 
         if (tokenize_nrows(parser, nrows) == 0)
             res = TCL_OK;
     } else {

@@ -64,7 +64,7 @@ text {
     |If specified, _LINELIST_ must be a list of integer
     line numbers (first line being at position 0). The corresponding lines
     are skipped and not included in the returned data. The line numbering
-    includes commented lines.
+    includes commented lines if comments are enabled.
 
     |`-startline _LINENUM_`
     |If specified, the first _LINENUM_ files of input are ignored.
