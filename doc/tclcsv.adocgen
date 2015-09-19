@@ -16,10 +16,10 @@ text {
 text {
     == Introduction
 
-    The `tclcsv` extension provides a fast and flexible means of
+    The `tclcsv` extension for Tcl provides a fast and flexible means of
     reading text files in _Comma Separated Value_ (CSV) format.
 
-    It currently provides a single command, `read_csv` that reads
+    It currently provides a single command, `csv_read` that reads
     CSV data from a channel.
 
     [NOTE]
@@ -28,12 +28,35 @@ text {
     a pure Tcl package but conversely has much lower performance which
     is an issue only for larger files. It is also a little less flexible
     in terms of input syntax.
+}
+
+text {
+    == Downloads and installation
+
+    Prebuilt 32- and 64-bit binaries for Windows are available from
+    http://sourceforge.net/projects/tclcsv/files/. Unzip the distribution
+    into a directory that is included in your Tcl `auto_path`.
     
+    For *ix systems, a TEA-compliant source distribution can be downloaded from
+    from the same location. To install, unpack the distribution and
+    in the toplevel directory type
+} syntax {
+    ./configure --with-tcl=__PATH_TO_TCLCONFIG__
+    make install
+} text {
+    where __PATH_TO_TCLCONFIG__ is the full path to the directory
+    containing the `tclConfig.sh` file for your Tcl installation.
 }
 
 text {
     == Command reference
 
+    To use the extension in your application, add the line
+} syntax {
+    package require tclcsv
+} text {
+    to your application.
+    
     All commands are located in the `tclcsv` namespace.
 
     === Commands
@@ -81,7 +104,7 @@ text {
     There are several variations of the CSV format. The following options
     specify what variant is expected.
     
-    ((.Table tab_tclcsv_rowopts "Options for filtering rows"))
+    ((.Table tab_tclcsv_fmtopts "CSV format options"))
     [cols="20,80"]
     |===
 
@@ -127,10 +150,25 @@ text {
     fields. If required, the caller has to check that all returned rows
     have the same number of elements.
 }
+
+text {
+    == Source code
+
+    The source code for the extensions is available from its project
+    page at http://sourceforge.net/projects/tclcsv/.
+}
+
+text {
+    == Reporting bugs
+
+    Please report any bugs at http://sourceforge.net/p/tclcsv/tickets/.
+}
+
 text {
     == License
 
-    See the file LICENSE in the source distribution.
+    See the file `license.terms` in the distribution or in the
+    `src` directory in the source repository.
 }
 
 text {
