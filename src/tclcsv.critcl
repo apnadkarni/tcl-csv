@@ -21,7 +21,7 @@ critcl::ccode {
 }
 
 critcl::csources csv.c
-critcl::cheaders csv.h
+critcl::cheaders csv.h khash.h
 
 critcl::ccommand tclcsv::csv_read csv_read_cmd
 
