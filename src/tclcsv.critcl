@@ -25,5 +25,5 @@ critcl::cheaders csv.h khash.h
 
 critcl::ccommand tclcsv::csv_read csv_read_cmd
 
-package provide tclcsv 0.1
+package provide tclcsv 1.0
 critcl::load
