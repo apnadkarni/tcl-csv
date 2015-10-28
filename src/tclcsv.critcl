@@ -1,8 +1,8 @@
 #
-# Copyright (c) 2012-2015, Ashok P. Nadkarni
+# Copyright (c) 2015, Ashok P. Nadkarni
 # All rights reserved.
 #
-# See the file LICENSE for license
+# See the file license.terms for license
 #
 
 package require critcl 3.1
@@ -20,6 +20,7 @@ critcl::ccode {
     #include "csv.h"
 }
 
+critcl::tsources csv.tcl
 critcl::csources csv.c
 critcl::cheaders csv.h khash.h
 
