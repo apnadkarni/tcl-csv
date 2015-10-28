@@ -64,10 +64,13 @@ proc tclcsv::_sniff {chan delimiters} {
         unset -nocomplain width_frequencies
         try {
             set nrows 0
-            foreach row [csv_read -nrows 100 -skipblanklines 1 -delimiter $delimiter $chan] {
+            while {[gets $chan line] >= 0} {
+                if {$line eq ""} continue
+                set row [split $line $delimiter]
                 set n [llength $row]
                 incr width_frequencies($n)
                 incr nrows
+                if {$nrows > 100} break
             }
         } finally {
             chan seek $chan $seek_pos
@@ -120,8 +123,9 @@ proc tclcsv::_sniff {chan delimiters} {
     #   - comment character
     try {
         set nrows 0
-        foreach row [csv_read -nrows 100 -skipblanklines 1 -delimiter $delimiter $chan] {
-            incr nrows
+        while {[gets $chan line] >= 0} {
+            if {$line eq ""} continue
+            set row [split $line $delimiter]
             set n [llength $row]
             if {$n == $nfields} {
                 lappend good $row
@@ -130,6 +134,8 @@ proc tclcsv::_sniff {chan delimiters} {
             } else {
                 lappend long $row
             }
+            incr nrows
+            if {$nrows > 100} break
         }
         set ngood [llength $good]
         if {$ngood == 0} {
@@ -149,6 +155,19 @@ proc tclcsv::_sniff {chan delimiters} {
                 incr fi
             }
         }
+
+        # Check if quotes are doubled
+        if {[info exists quotechar]} {
+            set ch $quotechar
+        } else {
+            set ch \"; # Default quote char
+        }
+        foreach row $good {
+            foreach field $row {
+                # TBD - how to check if quotes are doubled?
+            }
+        }
+        
         # If every column that had a field beginning with a space also
         # had all fields in that column beginning with a space then
         # we assume leading spaces are to be skipped.
@@ -176,11 +195,9 @@ proc tclcsv::_sniff {chan delimiters} {
                 }
             }
         }
-
     } finally {
         chan seek $chan $seek_pos
     }
-
     
     set dialect [dict create -delimiter $delimiter]
     if {[info exists skipleadingspace]} {
