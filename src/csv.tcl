@@ -142,17 +142,29 @@ proc tclcsv::_sniff {chan delimiters} {
             error "Failed to find lines with expected number of fields"
         }
         foreach row $good {
-            set fi 0
+            set findex 0
+            set doublequotecount 0
+            set singlequotecount 0
             foreach field $row {
                 # Check for quotes
-                if {[regexp {^\s*'.*'$} $field]} {
-                    set quotechar '
+                if {[regexp {^\s*".*"$} $field]} {
+                    incr doublequotecount
+                } elseif {[regexp {^\s*'.*'$} $field]} {
+                    incr singlequotecount
                 }
                 # Keep track of leading spaces per column
                 if {[string index $field 0] eq " "} {
-                    incr nspaces($fi)
+                    incr nspaces($findex)
                 }
-                incr fi
+            }
+            if {$singlequotecount > $doublequotecount} {
+                set quotechar '
+            } else {
+                # Note even though double quote is the default do not
+                # explicitly mark as such unless we have actually seen it
+                if {$doublequotecount > 0} {
+                    set quotechar \"
+                }
             }
         }
 
@@ -162,9 +174,19 @@ proc tclcsv::_sniff {chan delimiters} {
         } else {
             set ch \"; # Default quote char
         }
+
         foreach row $good {
             foreach field $row {
                 # TBD - how to check if quotes are doubled?
+                if {[regexp "\\s*${ch}\[^${ch}\]*${ch}${ch}" $field]} {
+                    incr doublequote
+                } elseif {[regexp "\\s*${ch}\[^${ch}\]*(\[^\[:alnum:\]\])${ch}" $field -> esc]} {
+                    incr esc_chars($esc)
+                }
+            }
+            if {(![info exists doublequote]) && [info exists esc_chars]} {
+                set esc_list [lsort -decreasing -integer -stride 2 -index 1 [array get esc_chars]]
+                set escape [lindex $esc_list 0]
             }
         }
         
@@ -195,23 +217,91 @@ proc tclcsv::_sniff {chan delimiters} {
                 }
             }
         }
+
+        # TBD - perhaps long lines can also be used since long lines
+        # can result from delimiters embedded within quotes
+
     } finally {
         chan seek $chan $seek_pos
     }
     
-    set dialect [dict create -delimiter $delimiter]
+    set dialect [list -delimiter $delimiter]
     if {[info exists skipleadingspace]} {
-        dict set dialect -skipleadingspace $skipleadingspace
+        lappend dialect -skipleadingspace $skipleadingspace
     }
     if {[info exists quotechar]} {
-        dict set dialect -quote $quotechar
+        lappend dialect -quote $quotechar
     }
     if {[info exists commentchar]} {
-        dict set dialect -comment $commentchar
+        lappend dialect -comment $commentchar
     }
-    
+    if {[info exists doublequote]} {
+        lappend dialect -doublequote 1
+    } else {
+        if {[info exists escape]} {
+            lappend dialect -escape $escape
+        }
+    }
+
+        
     return $dialect
 }
+
+proc tclcsv::sniff_header {args} {
+    if {[llength $args] == 0} {
+        error "wrong # args: should be \"sniff ?options? channel\""
+    }
+    set chan [lindex $args end]
+
+    set seek_pos [chan tell $chan]
+    if {$seek_pos == -1} {
+        error "Channel is not seekable"
+    }
+
+    try {
+        set rows [csv_read {*}[lrange $args 0 end-1] -nrows 20 $chan]
+        set width [llength [lindex $rows 0]]
+        set types [lrepeat $width unknown]
+        foreach row [lrange $rows 1 end] {
+            if {[llength $row] != $width} continue
+            for {set findex 0} {$findex < $width} {incr findex} {
+                set val [lindex $row $findex]
+                set field_type [lindex $types $findex]
+                if {$field_type eq "string"} continue
+                if {$field_type eq "real"} {
+                    if {![string is double -strict $val]} {
+                        lset types $findex string
+                    }
+                    continue
+                }
+                # field_type is integer or unknown
+                if {[string is wide -strict $val]} {
+                    lset types $findex integer
+                } elseif {[string is double -strict $val]} {
+                    lset types $findex real
+                } else {
+                    lset types $findex string
+                }
+            }
+            # If all fields are strings, not point checking further
+            if {$types eq [lrepeat $width string]} break
+        }
+    } finally {
+        chan seek $chan $seek_pos
+    }
+    puts "types:$types"
+    set types [string map {unknown string} $types]
+    foreach field [lindex $rows 0] type $types {
+        if {($type eq "integer" && ![string is wide -strict $field]) ||
+            ($type eq "real" && ![string is double -strict $field])} {
+            # The type of the first row field is different. Assume header
+            return [list [lindex $rows 0] $types]
+        }
+    }
+
+    # No header detected
+    return {}
+}       
 
 proc tclcsv::sniff {args} {
     if {[llength $args] == 0} {
