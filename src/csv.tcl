@@ -156,6 +156,7 @@ proc tclcsv::_sniff {chan delimiters} {
                 if {[string index $field 0] eq " "} {
                     incr nspaces($findex)
                 }
+                incr findex
             }
             if {$singlequotecount > $doublequotecount} {
                 set quotechar '
@@ -210,7 +211,7 @@ proc tclcsv::_sniff {chan delimiters} {
                 incr comment([string index $line 0])
             }
             set nshort [llength $short]
-            foreach {ch count} {
+            foreach {ch count} [array get comment] {
                 if {[expr {double($count)/$nshort}] > 0.8} {
                     set commentchar $ch
                     break
@@ -268,6 +269,13 @@ proc tclcsv::sniff_header {args} {
                 set val [lindex $row $findex]
                 set field_type [lindex $types $findex]
                 if {$field_type eq "string"} continue
+                if {[string is integer $field_type]} {
+                    if {[string length $val] != $field_type} {
+                        # Field width is not the same. Treat as variable width
+                        lset types $findex string
+                    }
+                    continue
+                }
                 if {$field_type eq "real"} {
                     if {![string is double -strict $val]} {
                         lset types $findex string
@@ -280,7 +288,11 @@ proc tclcsv::sniff_header {args} {
                 } elseif {[string is double -strict $val]} {
                     lset types $findex real
                 } else {
-                    lset types $findex string
+                    if {$field_type eq "unknown"} {
+                        lset types $findex [string length $val]
+                    } else {
+                        lset types $findex string
+                    }
                 }
             }
             # If all fields are strings, not point checking further
@@ -289,18 +301,45 @@ proc tclcsv::sniff_header {args} {
     } finally {
         chan seek $chan $seek_pos
     }
-    puts "types:$types"
+
+    # Anything that we could not type is marked as string
     set types [string map {unknown string} $types]
+
+    # If we could determine that any one column was a non-string type
+    # (integer or real) but the header field for that column is not
+    # of that type, we immediately conclude the first row is a header.
+    # In addition, in the case of columns that are of fixed width,
+    # we take a vote, where every time the field in first row of the
+    # fixed width column is of a different width we raise the probability
+    # of header existence and if of the same width, we lower the probability.
+    set probably_header 0
     foreach field [lindex $rows 0] type $types {
         if {($type eq "integer" && ![string is wide -strict $field]) ||
-            ($type eq "real" && ![string is double -strict $field])} {
+            ($type eq "real" && ![string is double -strict $field])
+        } {
             # The type of the first row field is different. Assume header
-            return [list [lindex $rows 0] $types]
+            set probably_header 1
+            break
+        }
+        # See if a fixed width header
+        if {[string is integer $type]} {
+            if {$type == [string length $field]} {
+                incr probably_header -1
+            } else {
+                incr probably_header 1
+            }
         }
     }
 
-    # No header detected
-    return {}
+    set types [lmap type $types {
+        expr {[string is integer $type] ? "string" : $type}
+    }]
+
+    if {$probably_header > 0} {
+        return [list $types [lindex $rows 0]]
+    } else {
+        return [list $types]
+    }
 }       
 
 proc tclcsv::sniff {args} {

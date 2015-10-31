@@ -19,11 +19,9 @@ text {
     The `tclcsv` extension for Tcl provides a fast and flexible means of
     reading text files in _Comma Separated Value_ (CSV) format.
 
-    It currently provides a single command, `csv_read` that reads
-    CSV data from a channel.
-
     [NOTE]
-    The `tcllib` distribution also has a package `csv` that is capable
+    The http://tcl.activestate.com/software/tcllib/[tcllib]
+    distribution also has a package `csv` that is capable
     of reading and writing CSV files. It has the advantage of being
     a pure Tcl package but conversely has much lower performance which
     is an issue only for larger files. It is also a little less flexible
@@ -49,10 +47,33 @@ text {
 }
 
 text {
+    == General usage
+
+    The package currently provides a single command, `csv_read`, to read
+    CSV data from a channel. The command takes various options that
+    indicate the specific dialect of CSV format such as the character
+    used for delimiting fields, as well as options that limit which rows
+    of the data are returned.
+
+    [TIP]
+    If you want to parse the CSV data that is contained in a string,
+    you can use the `tcl::chan::string` package available as part
+    of http://tcl.activestate.com/software/tcllib/[tcllib]
+    as shown in the examples in this documentation.
+    You can load the package as
+    ====
+} shell {
+    package require tcl::chan::string
+} text {
+    ====
+}
+
+
+text {
     == Command reference
 
     To use the extension in your application, add the line
-} syntax {
+} script {
     package require tclcsv
 } text {
     to your application.
@@ -150,7 +171,38 @@ text {
     fields. If required, the caller has to check that all returned rows
     have the same number of elements.
 }
+text {
+    ((cmddef tclcsv_sniff "sniff ?-delimiters _DELIMITERS_? _CHANNEL_"))
 
+    Attempts to guess the format of the data in the channel and returns
+    a list of appropriate options to be passed to ((^ tclcsv_csv_read)).
+    The command uses heuristics that may not work for all files and
+    as such is intended for interactive use.
+
+    The channel must be seekable and the command always returns the
+    channel in the same position it was in when the command was called.
+    This is true for both normal returns as well as exceptions.
+
+} shell {
+    set fd [tcl::chan::string { \
+        r0c0, r0c1, r0c2
+        r1c0, r1c1, r1c2
+        r2c0, r2c1, r2c2
+    }]
+    set opts [tclcsv::sniff $fd]
+    tclcsv::csv_read {*}$opts $fd
+    close $fd
+} shell {
+    set fd [tcl::chan::string { \
+        'r0;c0';'r0c1';'r0c2'
+        'r1c0'; 'r1c1'; 'r1c2'
+        'r2c0'; 'r2c1'; 'r2c2'
+    }]
+    set opts [tclcsv::sniff $fd]
+    tclcsv::csv_read {*}$opts $fd
+    close $fd
+}
+    
 text {
     == Source code
 
