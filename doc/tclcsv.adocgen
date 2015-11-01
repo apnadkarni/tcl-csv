@@ -82,7 +82,7 @@ text {
 
     === Commands
 
-    ((cmddef tclcsv_csv_read "csv_read ?options? _CHANNEL_"))
+    ((cmddef tclcsv_csv_read "csv_read ?_OPTIONS_? _CHANNEL_"))
 
     The command reads data from the specified channel and returns
     a Tcl list each element of which is a list corresponding to
@@ -104,7 +104,7 @@ text {
     the last read data.
 
     |`-skipblanklines _BOOLEAN_`
-    |If specified as `true`, empty lines are ignored. If `false` (default)
+    |If specified as `true` (default), empty lines are ignored. If `false`
     empty lines are treated as rows with no fields.
 
     |`-skiplines _LINELIST_`
@@ -171,6 +171,7 @@ text {
     fields. If required, the caller has to check that all returned rows
     have the same number of elements.
 }
+
 text {
     ((cmddef tclcsv_sniff "sniff ?-delimiters _DELIMITERS_? _CHANNEL_"))
 
@@ -203,6 +204,53 @@ text {
     close $fd
 }
     
+text {
+    ((cmddef tclcsv_sniff_header "sniff_header ?_OPTIONS_? _CHANNEL_"))
+
+    Attempts to guess whether the CSV data contained in the channel
+    includes a header. It also attempts to guess the type of the data
+    in each column of the CSV file. _OPTIONS_ specify the CSV dialect
+    of the data. See ((^ tab_tclcsv_fmtopts)).
+
+    If the data includes a header, the command returns a list with two
+    elements, the first of which is a list containing the deduced type
+    of each column, and the second element being a list containing
+    the header fields for each column. If the command deduces that
+    the data does not contain a header, the returned list does not
+    contain the second element.
+
+    The deduced type of each column is one of `integer`, `real` or
+    `string`.
+    
+    The command uses heuristics that may not work for all files and
+    as such is intended for interactive use.
+
+    The channel must be seekable and the command always returns the
+    channel in the same position it was in when the command was called.
+    This is true for both normal returns as well as exceptions.
+
+    The following examples show the return values with or without
+    a header being present.
+} shell {
+    set fd [tcl::chan::string { \
+        City, Longitude, Latitude
+        New York, 40.7127, 74.0059
+        London, 51.5072, 0.1275
+    }]
+    tclcsv::sniff_header $fd
+    close $fd
+    
+    set fd [tcl::chan::string { \
+        New York, 40.7127, 74.0059
+        London, 51.5072, 0.1275
+    }]
+    tclcsv::sniff_header $fd
+    close $fd
+} text {
+    Note that when a header is present, you can use the `-skiplines` option
+    to ((^ tclcsv_csv_read csv_read)) to skip the header.
+}
+
 text {
     == Source code
 

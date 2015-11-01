@@ -342,6 +342,22 @@ proc tclcsv::sniff_header {args} {
     }
 }       
 
+proc tclcsv::dialect {dialect} {
+    variable dialects
+    set dialects [dict create]
+    dict set dialects excel [list \
+                                 -delimiter , \
+                                 -quotechar \" \
+                                 -doublequote 1 \
+                                 -skipinitialspace 0]
+    dict set dialects excel-tab [dict merge [dict get $dialects excel] [list -delimiter \t]]
+    proc [namespace current]::dialect {dialect} {
+        variable dialects
+        return [dict get $dialects $dialect]
+    }
+    return [dialect $dialect]
+}
+
 proc tclcsv::sniff {args} {
     if {[llength $args] == 0} {
         error "wrong # args: should be \"sniff ?options? channel\""

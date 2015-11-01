@@ -30,13 +30,13 @@ set crlftext [string map [list \n \r\n] $lftext]
 set testnum 0
 
 t "Empty input" {} {}
-t "Basic text" $lftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
-t "Basic text" $crlftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
+t "Basic text" $lftext {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
+t "Basic text" $crlftext {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
 
 # Skip field whitespace
-t "-skipleadingspace true" $lftext {{a {b c} d} {e {f  } g} {} {{}} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -skipleadingspace true
-t "-skipleadingspace 1" $lftext {{a {b c} d} {e {f  } g} {} {{}} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -skipleadingspace 1
-t "-skipleadingspace 0" $crlftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
+t "-skipleadingspace true" $lftext {{a {b c} d} {e {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -skipleadingspace true
+t "-skipleadingspace 1" $lftext {{a {b c} d} {e {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -skipleadingspace 1
+t "-skipleadingspace 0" $crlftext {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} 
 t "-skipleadingspace 0 tabs" "\t\ta,b\t\t\nc\t\t,\t\td\n" [list [list \t\ta b\t\t] [list c\t\t \t\td]]
 t "-skipleadingspace true tabs" "\t\ta,b\t\t\nc\t\t,\t\td\n" [list [list \t\ta b\t\t] [list c\t\t \t\td]] -skipleadingspace true
 
@@ -56,7 +56,7 @@ t "-terminator" "a,\nbxc,x\r\ndx,ex" [list [list a \nb] [list c {}] [list \r\nd]
 
 # Comment tests
 # Note that a line beginning with # is entirely ignored
-t "-comment #" $lftext {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {x {}} {y z}} -comment #
+t "-comment #" $lftext {{a {b c} d} {{  e} {f  } g} {{} {} {}} {x {}} {y z}} -comment #
 t "-comment # with blanks" "# comment,x\n  #comment, x" [list [list {  }]] -comment #
     
 # Delimiter tests
@@ -67,7 +67,7 @@ t "-delimiter unspecified" "abc,def ghi,\n xyz" {{abc {def ghi} {}} {{ xyz}}}
 t "-delimiter space" "abc,def ghi,\n xyz" {{abc,def ghi,} {{} xyz}} -delimiter { }
 t "Consecutive delimiter" ",,,\r\n,,\r\n" {{{} {} {} {}} {{} {} {}}}
 t "Consecutive -delimiter \\t" "\t\t\t\r\n\t\t\r\n" {{{} {} {} {}} {{} {} {}}} -delimiter \t
-t "-delimiter tab" [string map [list , \t] $lftext] {{a {b c} d} {{  e} {f  } g} {} {{  }} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -delimiter \t
+t "-delimiter tab" [string map [list , \t] $lftext] {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} -delimiter \t
 
 # Quoting tests
 badoptval -quote "aa"
@@ -80,14 +80,14 @@ t "Default quotes" "a,'b,c',d\n'e,f',g,'h\ni'" [list [list a b,c d] [list e,f g 
 # Skip blank lines
 badoptval -skipblanklines ""
 badoptval -skipblanklines nonboolean
-t "Skip blank lines" " \n\n  \n" [list [list { }] [list ] [list {  }]]
+t "Skip blank lines" " \n\n  \n" {}
 t "-skipblanklines 0" " \n\n  \nabc,def" [list [list { }] [list ] [list {  }] [list abc def]] -skipblanklines 0
 t "-skipblanklines true" " \n\n  \nabc,def" [list [list abc def]] -skipblanklines true
 
 # Escape character
 badoptval -escape AA
 badoptval -escape \x80
-t "No escape (default)" "a\\,b\\,c\\\n\n\\d,\\e" [list [list "a\\" "b\\" "c\\"] [list ] [list \\d \\e]]
+t "No escape (default)" "a\\,b\\,c\\\n\n\\d,\\e" [list [list "a\\" "b\\" "c\\"] [list \\d \\e]]
 t "-escape \\" "a\\,b\\,c\\\n\n\\d,\\e" [list [list a,b,c\n] [list d e]] -escape \\
 t "-escape ^" "a^,b^,c^\n\n^d,^e" [list [list a,b,c\n] [list d e]] -escape ^
 

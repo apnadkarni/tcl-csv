@@ -39,6 +39,7 @@ void parser_set_default_options(parser_t *self)
     self->quoting = QUOTE_MINIMAL;
     self->allow_embedded_newline = 1;
     self->strict = 0;
+    self->skip_empty_lines = 1;
 
     self->expected_fields = -1;
     self->error_bad_lines = 0;
@@ -47,7 +48,7 @@ void parser_set_default_options(parser_t *self)
     self->commentchar = '\0';
 
     self->skipset = NULL;
-    self-> skip_first_N_rows = -1;
+    self->skip_first_N_rows = -1;
     self->skip_footer = 0;
 }
 
