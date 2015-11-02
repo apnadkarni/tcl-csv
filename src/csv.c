@@ -41,6 +41,14 @@ static void free_if_not_null(void **ptr) {
     }
 }
 
+static void unref_obj_if_not_null(Tcl_Obj **ppobj)
+{
+    if (*ppobj != NULL) {
+        Tcl_DecrRefCount(*ppobj);
+        *ppobj = NULL;
+    }
+}
+
 void parser_set_default_options(parser_t *self)
 {
     self->delimiter = ','; // XXX
@@ -69,54 +77,26 @@ void parser_set_default_options(parser_t *self)
     self->skip_footer = 0;
 }
 
-parser_t* parser_new()
+static parser_t* parser_new()
 {
     return (parser_t*) calloc(1, sizeof(parser_t));
 }
 
-int parser_cleanup(parser_t *self)
+static void parser_cleanup(parser_t *self)
 {
-    int    status = 0;
-
-    if (self->errorObj) {
-        Tcl_DecrRefCount(self->errorObj);
-        self->errorObj = NULL;
-    }
-
-    if (self->warnObj) {
-        Tcl_DecrRefCount(self->warnObj);
-        self->warnObj = NULL;
-    }
-    
+    unref_obj_if_not_null(&self->errorObj);
+    unref_obj_if_not_null(&self->warnObj);
+    unref_obj_if_not_null(&self->dataObj);
+    unref_obj_if_not_null(&self->rowsObj);
+    unref_obj_if_not_null(&self->rowObj);
+    unref_obj_if_not_null(&self->fieldObj);
     if (self->skipset != NULL) {
         kh_destroy_int64((kh_int64_t*) self->skipset);
         self->skipset = NULL;
     }
-
-    if (self->dataObj) {
-        Tcl_DecrRefCount(self->dataObj);
-        self->dataObj = NULL;
-    }
-    
-    if (self->rowsObj) {
-        Tcl_DecrRefCount(self->rowsObj);
-        self->rowsObj = NULL;
-    }
-
-    if (self->rowObj) {
-        Tcl_DecrRefCount(self->rowObj);
-        self->rowObj = NULL;
-    }
-    
-    if (self->fieldObj) {
-        Tcl_DecrRefCount(self->fieldObj);
-        self->fieldObj = NULL;
-    }
-    
-    return status;
 }
 
-int parser_init(parser_t *self)
+static int parser_init(parser_t *self)
 {
     self->errorObj = NULL;
     self->warnObj = NULL;
