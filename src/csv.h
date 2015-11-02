@@ -169,6 +169,8 @@ int tokenize_nrows(parser_t *self, size_t nrows);
 
 int tokenize_all_rows(parser_t *self);
 
+parser_t *parser_create(Tcl_Interp *, int objc, Tcl_Obj *const objv[], int *pnrows);
+
 int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
                  int objc, Tcl_Obj *const objv[]);
 #endif // _PARSER_COMMON_H_

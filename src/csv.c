@@ -1428,8 +1428,8 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
         CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPLINES,
         CSV_STARTLINE, CSV_STRICT, CSV_TERMINATOR,
     };
-    if (objc < 2) {
-	Tcl_WrongNumArgs(ip, 1, objv, "CHANNEL");
+    if (objc < 1) {
+        Tcl_SetResult(ip, "Syntax error: CHANNEL argument must be specified.", TCL_STATIC);
 	return NULL;
     }
         
@@ -1445,7 +1445,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
 
     nrows = -1;
     res = TCL_ERROR;
-    for (i = 1; i < objc-1; i += 2) {
+    for (i = 0; i < objc-1; i += 2) {
 	if (Tcl_GetIndexFromObj(ip, objv[i], switches, "option", 0, &opt)
             != TCL_OK)
             goto error_handler;
@@ -1472,6 +1472,10 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             parser->escapechar = *s; /* \0 -> no escape char */
             break;
         case CSV_NROWS:
+            if (pnrows == NULL) {
+                Tcl_SetResult(ip, "Option -nrows is not valid in this mode", TCL_STATIC);
+                goto error_handler;
+            }
             res = Tcl_GetIntFromObj(ip, objv[i+1], &nrows);
             if (res != TCL_OK)
                 goto invalid_option_value;
@@ -1546,7 +1550,8 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             break;
         }
     }
-    *pnrows = nrows;
+    if (pnrows)
+        *pnrows = nrows;
     return parser;
 
 invalid_option_value: /* objv[i] should be the invalid option */
@@ -1564,7 +1569,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
     parser_t *parser;
     int nrows, res;
 
-    parser = parser_create(ip, objc, objv, &nrows);
+    parser = parser_create(ip, objc-1, objv+1, &nrows);
     if (parser == NULL)
         return TCL_ERROR;
     

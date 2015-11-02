@@ -7,6 +7,9 @@
 
 package require critcl 3.1
 
+critcl::buildrequirement {
+    package require critcl::class ; # DSL, easy spec of Tcl class/object commands.
+}
 critcl::license "Ashok P. Nadkarni"
 critcl::summary "Tcl CSV extension"
 critcl::description {
@@ -24,7 +27,45 @@ critcl::tsources csv.tcl
 critcl::csources csv.c
 critcl::cheaders csv.h khash.h
 
-critcl::ccommand tclcsv::csv_read csv_read_cmd
+critcl::ccommand ::tclcsv::csv_read csv_read_cmd
+
+critcl::class::define ::tclcsv::reader {
+    insvariable parser_t* parser {
+        The CSV parser
+    } {
+        instance->parser = NULL;
+    }
+    constructor {
+        instance->parser = parser_create(interp, objc, objv, NULL);
+        if (instance->parser == NULL)
+            goto error;
+    }
+    destructor {
+        if (instance->parser)
+            parser_free(instance->parser);
+    }
+    method next proc {} ok {
+        int res;
+        parser_t *parser = instance->parser;
+        res = tokenize_nrows(parser, 1) == 0 ? TCL_OK : TCL_ERROR;
+        if (res == TCL_OK) {
+            if (parser->rowsObj) {
+                Tcl_Obj *rowObj;
+                res = Tcl_ListObjIndex(interp, parser->rowsObj, 0, &rowObj);
+                if (res == TCL_OK) {
+                    Tcl_SetObjResult(interp, rowObj);
+                    Tcl_ListObjReplace(interp, parser->rowsObj, 0, 1, 0, NULL);
+                }
+            }
+        } else {
+            if (parser->errorObj)
+                Tcl_SetObjResult(interp, parser->errorObj);
+            else
+                Tcl_SetResult(interp, "Error parsing CSV", TCL_STATIC);
+        }
+        return res;
+    }
+}
 
 package provide tclcsv 1.0
 critcl::load
