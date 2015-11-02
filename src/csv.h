@@ -9,7 +9,7 @@ BSD
    Python's built-in csv module and Warren Weckesser's textreader project on
    GitHub. See Python Software Foundation License and BSD licenses for these.
 
-   Heavily adapted for tarray/Tcl
+   Heavily adapted for tclcsv/Tcl
 */
 
 #ifndef _TACSV_H

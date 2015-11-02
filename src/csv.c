@@ -1407,8 +1407,7 @@ int tokenize_all_rows(parser_t *self)
     return status;
 }
 
-int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
-                              int objc, Tcl_Obj *const objv[])
+parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pnrows)
 {
     parser_t *parser;
     int i, mode, opt, len, ival, nrows;
@@ -1429,15 +1428,14 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
         CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPLINES,
         CSV_STARTLINE, CSV_STRICT, CSV_TERMINATOR,
     };
-
     if (objc < 2) {
 	Tcl_WrongNumArgs(ip, 1, objv, "CHANNEL");
-	return TCL_ERROR;
+	return NULL;
     }
         
     chan = Tcl_GetChannel(ip, Tcl_GetString(objv[objc-1]), &mode);
     if (chan == NULL)
-        return TCL_ERROR;
+        return NULL;
 
     parser = parser_new();
     parser->chunksize = 256*1024; /* TBD - chunksize */
@@ -1450,10 +1448,10 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
     for (i = 1; i < objc-1; i += 2) {
 	if (Tcl_GetIndexFromObj(ip, objv[i], switches, "option", 0, &opt)
             != TCL_OK)
-            goto vamoose;
+            goto error_handler;
         if ((i+1) >= (objc-1)) {
             Tcl_SetResult(ip, "Missing argument for option", TCL_STATIC);
-            goto vamoose;
+            goto error_handler;
         }
         s = Tcl_GetStringFromObj(objv[i+1], &len);
 
@@ -1498,14 +1496,14 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
         case CSV_SKIPLINES:
             res = Tcl_ListObjGetElements(ip, objv[i+1], &len, &objs);
             if (res != TCL_OK)
-                goto vamoose;
+                goto error_handler;
             else {
                 int j;
                 Tcl_WideInt wval;
                 for (j = 0; j < len; ++j) {
                     res = Tcl_GetWideIntFromObj(ip, objs[j], &wval);
                     if (res != TCL_OK)
-                        goto vamoose;
+                        goto error_handler;
                     if (wval < 0)
                         goto invalid_option_value;
                     parser_add_skiprow(parser, wval);
@@ -1548,6 +1546,27 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
             break;
         }
     }
+    *pnrows = nrows;
+    return parser;
+
+invalid_option_value: /* objv[i] should be the invalid option */
+    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s", Tcl_GetString(objv[i])));
+    /* Fall thru to error return */
+error_handler:
+    if (parser)
+        parser_free(parser);
+    return NULL;
+}
+
+int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
+                              int objc, Tcl_Obj *const objv[])
+{
+    parser_t *parser;
+    int nrows, res;
+
+    parser = parser_create(ip, objc, objv, &nrows);
+    if (parser == NULL)
+        return TCL_ERROR;
     
     if (nrows >= 0) 
         res = tokenize_nrows(parser, nrows) == 0 ? TCL_OK : TCL_ERROR;
@@ -1563,12 +1582,6 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
             Tcl_SetResult(ip, "Error parsing CSV", TCL_STATIC);
     }
     
-vamoose: /* res should contain status */
     parser_free(parser);
     return res;
-
-invalid_option_value: /* objv[i] should be the invalid option */
-    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s", Tcl_GetString(objv[i])));
-    res = TCL_ERROR;
-    goto vamoose;
 }
