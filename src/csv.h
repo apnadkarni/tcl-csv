@@ -145,8 +145,8 @@ typedef struct parser_t {
     int skip_footer;
 
     // error handling
-    char *warn_msg;
-    char *error_msg;
+    Tcl_Obj *warnObj;
+    Tcl_Obj *errorObj;
 
     int skip_empty_lines;
 } parser_t;

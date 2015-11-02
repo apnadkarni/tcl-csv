@@ -17,6 +17,23 @@
 
 KHASH_MAP_INIT_INT64(int64, size_t)
 
+static void append_warning(parser_t *self, Tcl_Obj *msgObj)
+{
+    if (self->warnObj == NULL) {
+        self->warnObj = Tcl_NewListObj(0, NULL);
+        Tcl_IncrRefCount(self->warnObj);
+    }
+    Tcl_ListObjAppendElement(NULL, self->warnObj, msgObj);
+}
+
+static void set_error(parser_t *self, Tcl_Obj *msgObj)
+{
+    Tcl_IncrRefCount(msgObj);
+    if (self->errorObj)
+        Tcl_DecrRefCount(self->errorObj);
+    self->errorObj = msgObj;
+}
+
 static void free_if_not_null(void **ptr) {
     if (*ptr != NULL) {
         free(*ptr);
@@ -61,10 +78,16 @@ int parser_cleanup(parser_t *self)
 {
     int    status = 0;
 
-    // XXX where to put this
-    free_if_not_null((void *) &self->error_msg);
-    free_if_not_null((void *) &self->warn_msg);
+    if (self->errorObj) {
+        Tcl_DecrRefCount(self->errorObj);
+        self->errorObj = NULL;
+    }
 
+    if (self->warnObj) {
+        Tcl_DecrRefCount(self->warnObj);
+        self->warnObj = NULL;
+    }
+    
     if (self->skipset != NULL) {
         kh_destroy_int64((kh_int64_t*) self->skipset);
         self->skipset = NULL;
@@ -95,8 +118,8 @@ int parser_cleanup(parser_t *self)
 
 int parser_init(parser_t *self)
 {
-    self->error_msg = NULL;
-    self->warn_msg = NULL;
+    self->errorObj = NULL;
+    self->warnObj = NULL;
 
     self->lines = 0;
     self->file_lines = 0;
@@ -137,24 +160,6 @@ static int P_INLINE end_field(parser_t *self)
     return 0;
 }
 
-static void append_warning(parser_t *self, const char *msg)
-{
-    int ex_length;
-    int length = strlen(msg);
-    void *newptr;
-
-    if (self->warn_msg == NULL) {
-        self->warn_msg = (char*) malloc(length + 1);
-        strcpy(self->warn_msg, msg);
-    } else {
-        ex_length = strlen(self->warn_msg);
-        newptr = realloc(self->warn_msg, ex_length + length + 1);
-        if (newptr != NULL) {
-            self->warn_msg = (char*) newptr;
-            strcpy(self->warn_msg + ex_length, msg);
-        }
-    }
-}
 
 static int end_line(parser_t *self)
 {
@@ -217,9 +222,9 @@ static int end_line(parser_t *self)
         // file_lines is now the _actual_ file line number (starting at 1)
 
         if (self->error_bad_lines) {
-            self->error_msg = (char*) malloc(100);
-            sprintf(self->error_msg, "Expected %d fields in line %d, saw %d\n",
-                    ex_fields, self->file_lines, fields);
+            set_error(self,
+                      Tcl_ObjPrintf("CSV parse error: expected %d fields in line %d, saw %d\n",
+                                    ex_fields, self->file_lines, fields));
 
             TRACE(("Error at line %d, %d fields\n", self->file_lines, fields));
 
@@ -228,11 +233,11 @@ static int end_line(parser_t *self)
             // simply skip bad lines
             if (self->warn_bad_lines) {
                 // pass up error message
-                msg = (char*) malloc(100);
-                sprintf(msg, "Skipping line %d: expected %d fields, saw %d\n",
-                        self->file_lines, ex_fields, fields);
-                append_warning(self, msg);
-                free(msg);
+                append_warning(self, 
+                               Tcl_ObjPrintf("Skipping line %d: expected %d fields, saw %d\n",
+                                             self->file_lines,
+                                             ex_fields,
+                                             fields));
             }
         }
     }
@@ -242,7 +247,7 @@ static int end_line(parser_t *self)
 
             /* Might overrun the buffer when closing fields */
             if (make_stream_space(self, ex_fields - fields) < 0) {
-                self->error_msg = "out of memory";
+                set_error(self, Tcl_NewStringObj("out of memory", -1));
                 return -1;
             }
 
@@ -264,9 +269,8 @@ static int end_line(parser_t *self)
 
         // good line, set new start point
         if (self->lines >= self->lines_cap) {
-            TRACE(("end_line: ERROR!!! self->lines(%zu) >= self->lines_cap(%zu)\n", self->lines, self->lines_cap))  \
-            self->error_msg = (char*) malloc(100);      \
-            sprintf(self->error_msg, "Buffer overflow caught - possible malformed input file.\n"); \
+            TRACE(("end_line: ERROR!!! self->lines(%zu) >= self->lines_cap(%zu)\n", self->lines, self->lines_cap));
+            set_error(self, Tcl_NewStringObj("Buffer overflow caught - possible malformed input CSV data.\n", -1));
             return PARSER_OUT_OF_MEMORY;                \
         }
         self->line_start[self->lines] = (self->line_start[self->lines - 1] +
@@ -329,8 +333,7 @@ static int parser_buffer_bytes(parser_t *self, size_t nbytes)
         self->datalen = 0;
         return REACHED_EOF;
     } else {
-        self->error_msg = (char*) malloc(200);
-        sprintf(self->error_msg, "Calling read(nbytes) on source failed (Error %d).", Tcl_GetErrno());
+        set_error(self, Tcl_ObjPrintf("Calling read(nbytes) on source failed (Error %d).", Tcl_GetErrno()));
         return -1;
     }
 }
@@ -652,9 +655,9 @@ int tokenize_delimited(parser_t *self, size_t line_limit)
                 self->state = IN_FIELD;
             }
             else {
-                self->error_msg = (char*) malloc(50);
-                sprintf(self->error_msg, "'%c' expected after '%c'",
-                        self->delimiter, self->quotechar);
+                set_error(self,
+                          Tcl_ObjPrintf("CSV parse error: '%c' expected after '%c'",
+                                        self->delimiter, self->quotechar));
                 goto parsingerror;
             }
             break;
@@ -934,9 +937,9 @@ int tokenize_delim_customterm(parser_t *self, size_t line_limit)
                 self->state = IN_FIELD;
             }
             else {
-                self->error_msg = (char*) malloc(50);
-                sprintf(self->error_msg, "'%c' expected after '%c'",
-                        self->delimiter, self->quotechar);
+                set_error(self,
+                          Tcl_ObjPrintf("CSV parse error: '%c' expected after '%c'",
+                                        self->delimiter, self->quotechar));
                 goto parsingerror;
             }
             break;
@@ -1226,9 +1229,9 @@ int tokenize_whitespace(parser_t *self, size_t line_limit)
                 self->state = IN_FIELD;
             }
             else {
-                self->error_msg = (char*) malloc(50);
-                sprintf(self->error_msg, "'%c' expected after '%c'",
-                        self->delimiter, self->quotechar);
+                set_error(self,
+                          Tcl_ObjPrintf("CSV parse error: '%c' expected after '%c'",
+                                        self->delimiter, self->quotechar));
                 goto parsingerror;
             }
             break;
@@ -1309,9 +1312,9 @@ static int parser_handle_eof(parser_t *self)
             if (end_field(self) < 0)
                 return -1;
         } else if (self->state == IN_QUOTED_FIELD) {
-            self->error_msg = (char*) malloc(100);
-            sprintf(self->error_msg, "EOF inside string starting at line %d",
-                    self->file_lines);
+            set_error(self,
+                      Tcl_ObjPrintf("CSV parse error: EOF inside string starting at line %d",
+                                    self->file_lines));
             return -1;
         }
 
@@ -1435,14 +1438,14 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
         "-comment", "-delimiter", "-doublequote", "-escape",
         "-ignoreerrors", "-nrows", "-quote", "-quoting",
         "-skipblanklines", "-skipleadingspace", "-skiplines",
-        "-startline", "-terminator",
+        "-startline", "-strict", "-terminator",
         NULL
     };
     enum switches_e {
         CSV_COMMENT, CSV_DELIMITER, CSV_DOUBLEQUOTE, CSV_ESCAPE,
         CSV_IGNOREERRORS, CSV_NROWS, CSV_QUOTE, CSV_QUOTING,
         CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPLINES,
-        CSV_STARTLINE, CSV_TERMINATOR,
+        CSV_STARTLINE, CSV_STRICT, CSV_TERMINATOR,
     };
 
     if (objc < 2) {
@@ -1556,22 +1559,27 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
             case CSV_SKIPLEADINGSPACE:
                 parser->skipinitialspace = ival;
                 break;
+            case CSV_STRICT:
+                parser->strict = ival;
+                break;
             }
             break;
         }
     }
     
-    /* Note res == TCL_ERROR at this point */
-    if (nrows >= 0) { 
-        if (tokenize_nrows(parser, nrows) == 0)
-            res = TCL_OK;
-    } else {
-        if (tokenize_all_rows(parser) == 0)
-            res = TCL_OK;
-    }
+    if (nrows >= 0) 
+        res = tokenize_nrows(parser, nrows) == 0 ? TCL_OK : TCL_ERROR;
+    else 
+        res = tokenize_all_rows(parser) == 0 ? TCL_OK : TCL_ERROR;
 
     if (res == TCL_OK)
         Tcl_SetObjResult(ip, parser->rowsObj);
+    else {
+        if (parser->errorObj)
+            Tcl_SetObjResult(ip, parser->errorObj);
+        else
+            Tcl_SetResult(ip, "Error parsing CSV", TCL_STATIC);
+    }
     
 vamoose: /* res should contain status */
     parser_free(parser);
