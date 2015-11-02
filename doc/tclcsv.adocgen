@@ -220,7 +220,10 @@ text {
     contain the second element.
 
     The deduced type of each column is one of `integer`, `real` or
-    `string`.
+    `string`. Note that `integer` type check is done as a decimal
+    string and thus hexadecimal values are treated as strings
+    and values like `08` (invalid octal) are  accepted as valid
+    integer values.
     
     The command uses heuristics that may not work for all files and
     as such is intended for interactive use.

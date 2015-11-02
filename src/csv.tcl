@@ -282,8 +282,10 @@ proc tclcsv::sniff_header {args} {
                     }
                     continue
                 }
-                # field_type is integer or unknown
-                if {[string is wide -strict $val]} {
+                # field_type is integer or unknown. Our check for
+                # integer is not [string is wide] because we want to
+                # treat as decimal numbers and not parse as octals or hex
+                if {[regexp {^\d+$} $val]} {
                     lset types $findex integer
                 } elseif {[string is double -strict $val]} {
                     lset types $findex real
