@@ -131,9 +131,9 @@ int parser_init(parser_t *self)
     self->datapos = 0;
 
     /* Where we collect the rows */
-    self->rowsObj = Tcl_NewListObj(1000, NULL); /* TBD - guess 1000 rows */
+    self->rowsObj = Tcl_NewListObj(0, NULL);
     Tcl_IncrRefCount(self->rowsObj);
-    self->rowObj = Tcl_NewListObj(10, NULL); /* TBD - Guess 10 fields */
+    self->rowObj = Tcl_NewListObj(0, NULL);
     Tcl_IncrRefCount(self->rowObj);
     self->fieldObj = Tcl_NewObj();
     Tcl_IncrRefCount(self->fieldObj);
@@ -154,6 +154,7 @@ void parser_free(parser_t *self)
 static int P_INLINE end_field(parser_t *self)
 {
     Tcl_ListObjAppendElement(NULL, self->rowObj, self->fieldObj);
+    Tcl_DecrRefCount(self->fieldObj);
     self->fieldObj = Tcl_NewObj();
     Tcl_IncrRefCount(self->fieldObj);
 
@@ -178,6 +179,7 @@ static int end_line(parser_t *self)
     fields = 0;
     Tcl_ListObjLength(NULL, self->rowObj,  &fields);
     Tcl_ListObjAppendElement(NULL, self->rowsObj, self->rowObj);
+    Tcl_DecrRefCount(self->rowObj);
     self->rowObj = Tcl_NewListObj(fields, NULL);
     Tcl_IncrRefCount(self->rowObj);
 
