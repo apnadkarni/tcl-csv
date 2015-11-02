@@ -333,14 +333,19 @@ proc tclcsv::sniff_header {args} {
         }
     }
 
-    set types [lmap type $types {
-        expr {[string is integer $type] ? "string" : $type}
+    set types2 {}
+    foreach type $types {
+        if {[string is integer $type]} {
+            lappend types2 "string"
+        } else {
+            lappend types2 $type
+        }
     }]
 
     if {$probably_header > 0} {
-        return [list $types [lindex $rows 0]]
+        return [list $types2 [lindex $rows 0]]
     } else {
-        return [list $types]
+        return [list $types2]
     }
 }       
 
