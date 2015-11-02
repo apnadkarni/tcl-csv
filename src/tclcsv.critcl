@@ -44,17 +44,53 @@ critcl::class::define ::tclcsv::reader {
         if (instance->parser)
             parser_free(instance->parser);
     }
-    method next proc {} ok {
-        int res;
+    method next command {COUNT} {
+        int res, nrows;
         parser_t *parser = instance->parser;
-        res = tokenize_nrows(parser, 1) == 0 ? TCL_OK : TCL_ERROR;
+
+        if (objc > 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "?COUNT?");
+            return TCL_ERROR;
+        }
+        nrows = 1;
+        if (objc == 3) {
+            res = Tcl_GetIntFromObj(interp, objv[2], &nrows);
+            if (res != TCL_OK)
+                return res;
+            if (nrows <= 0) {
+                Tcl_SetResult(interp, "Invalid row count specified. Must be a positive integer.", TCL_STATIC);
+                return TCL_ERROR;
+            }
+        }
+        res = tokenize_nrows(parser, nrows) == 0 ? TCL_OK : TCL_ERROR;
         if (res == TCL_OK) {
-            if (parser->rowsObj) {
-                Tcl_Obj *rowObj;
-                res = Tcl_ListObjIndex(interp, parser->rowsObj, 0, &rowObj);
+            if (objc == 2) {
+                /* Return a single row */
+                if (parser->rowsObj) {
+                    Tcl_Obj *rowObj;
+                    res = Tcl_ListObjIndex(interp, parser->rowsObj, 0, &rowObj);
+                    if (res == TCL_OK) {
+                        Tcl_SetObjResult(interp, rowObj);
+                        Tcl_ListObjReplace(interp, parser->rowsObj, 0, 1, 0, NULL);
+                    }
+                }
+            } else if (parser->rowsObj) {
+                /* Return nrows rows where nrows might even be 1 */
+                int nread;
+                res = Tcl_ListObjLength(interp, parser->rowsObj, &nread);
                 if (res == TCL_OK) {
-                    Tcl_SetObjResult(interp, rowObj);
-                    Tcl_ListObjReplace(interp, parser->rowsObj, 0, 1, 0, NULL);
+                    if (nread <= nrows) {
+                        /* Return the whole list as is */
+                        Tcl_SetObjResult(interp, parser->rowsObj);
+                        Tcl_DecrRefCount(parser->rowsObj);
+                        parser->rowsObj = Tcl_NewListObj(0, NULL);
+                        Tcl_IncrRefCount(parser->rowsObj);
+                    } else {
+                        Tcl_Obj **elems;
+                        Tcl_ListObjGetElements(interp, parser->rowsObj, &nread, &elems);
+                        Tcl_SetObjResult(interp, Tcl_NewListObj(nrows, elems));
+                        Tcl_ListObjReplace(interp, parser->rowsObj, 0, nrows, 0, NULL);
+                    }
                 }
             }
         } else {
