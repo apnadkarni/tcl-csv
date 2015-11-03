@@ -44,8 +44,11 @@ critcl::class::define ::tclcsv::reader {
         if (instance->parser)
             parser_free(instance->parser);
     }
+    method eof proc {} int {
+        return instance->parser->state == FINISHED;
+    }
     method next command {COUNT} {
-        int res, nrows;
+        int nrows, nread;
         parser_t *parser = instance->parser;
 
         if (objc > 3) {
@@ -54,52 +57,53 @@ critcl::class::define ::tclcsv::reader {
         }
         nrows = 1;
         if (objc == 3) {
-            res = Tcl_GetIntFromObj(interp, objv[2], &nrows);
-            if (res != TCL_OK)
-                return res;
+            if (Tcl_GetIntFromObj(interp, objv[2], &nrows) != TCL_OK)
+                return TCL_ERROR;
             if (nrows <= 0) {
                 Tcl_SetResult(interp, "Invalid row count specified. Must be a positive integer.", TCL_STATIC);
                 return TCL_ERROR;
             }
         }
-        res = tokenize_nrows(parser, nrows) == 0 ? TCL_OK : TCL_ERROR;
-        if (res == TCL_OK) {
-            if (objc == 2) {
-                /* Return a single row */
-                if (parser->rowsObj) {
-                    Tcl_Obj *rowObj;
-                    res = Tcl_ListObjIndex(interp, parser->rowsObj, 0, &rowObj);
-                    if (res == TCL_OK) {
-                        Tcl_SetObjResult(interp, rowObj);
-                        Tcl_ListObjReplace(interp, parser->rowsObj, 0, 1, 0, NULL);
-                    }
-                }
-            } else if (parser->rowsObj) {
-                /* Return nrows rows where nrows might even be 1 */
-                int nread;
-                res = Tcl_ListObjLength(interp, parser->rowsObj, &nread);
-                if (res == TCL_OK) {
-                    if (nread <= nrows) {
-                        /* Return the whole list as is */
-                        Tcl_SetObjResult(interp, parser->rowsObj);
-                        Tcl_DecrRefCount(parser->rowsObj);
-                        parser->rowsObj = Tcl_NewListObj(0, NULL);
-                        Tcl_IncrRefCount(parser->rowsObj);
-                    } else {
-                        Tcl_Obj **elems;
-                        Tcl_ListObjGetElements(interp, parser->rowsObj, &nread, &elems);
-                        Tcl_SetObjResult(interp, Tcl_NewListObj(nrows, elems));
-                        Tcl_ListObjReplace(interp, parser->rowsObj, 0, nrows, 0, NULL);
-                    }
-                }
-            }
-        } else {
+	if (parser->state == FINISHED) 
+            return TCL_OK; /* EOF -> Empty result */
+
+        if (tokenize_nrows(parser, nrows) != 0 || parser->rowsObj == NULL) {
             if (parser->errorObj)
                 Tcl_SetObjResult(interp, parser->errorObj);
             else
                 Tcl_SetResult(interp, "Error parsing CSV", TCL_STATIC);
+            return TCL_ERROR;
         }
-        return res;
+
+        CSV_NOFAIL(Tcl_ListObjLength(interp, parser->rowsObj, &nread), TCL_OK);
+        if (nread == 0)
+            return TCL_OK; /* Empty result */
+            
+        if (objc == 2) {
+            /* Return a single row */
+            Tcl_Obj *rowObj;
+            CSV_NOFAIL(Tcl_ListObjIndex(interp, parser->rowsObj, 0, &rowObj), TCL_OK);
+            CSV_ASSERT(rowObj != NULL);
+            Tcl_SetObjResult(interp, rowObj);
+            CSV_ASSERT(! Tcl_IsShared(parser->rowsObj));
+            Tcl_ListObjReplace(interp, parser->rowsObj, 0, 1, 0, NULL);
+        } else {
+            /* Return nrows rows where nrows might even be 1 */
+            if (nread <= nrows) {
+                /* Return the whole list as is */
+                Tcl_SetObjResult(interp, parser->rowsObj);
+                Tcl_DecrRefCount(parser->rowsObj);
+                parser->rowsObj = Tcl_NewListObj(0, NULL);
+                Tcl_IncrRefCount(parser->rowsObj);
+            } else {
+                Tcl_Obj **elems;
+                Tcl_ListObjGetElements(interp, parser->rowsObj, &nread, &elems);
+                Tcl_SetObjResult(interp, Tcl_NewListObj(nrows, elems));
+                CSV_ASSERT(! Tcl_IsShared(parser->rowsObj));
+                Tcl_ListObjReplace(interp, parser->rowsObj, 0, nrows, 0, NULL);
+            }
+        }
+        return TCL_OK;
     }
 }
 

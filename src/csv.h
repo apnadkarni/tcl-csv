@@ -29,6 +29,26 @@ BSD
 #include "tcl.h"
 #include "khash.h"
 
+#if CSV_ENABLE_ASSERT
+#  if CSV_ENABLE_ASSERT == 1
+#    define CSV_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
+#  elif CSV_ENABLE_ASSERT == 2
+#    define CSV_ASSERT(bool_) (void)( (bool_) || (DebugOutput("Assertion (" #bool_ ") failed at line " MAKESTRINGLITERAL2(__LINE__) " in file " __FILE__ "\n"), 0) )
+#  elif CSV_ENABLE_ASSERT == 3
+#    define CSV_ASSERT(bool_) do { if (! (bool_)) { __asm int 3 } } while (0)
+#  else
+#    error Invalid value for CSV_ENABLE_ASSERT
+#  endif
+#else
+#define CSV_ASSERT(bool_) ((void) 0)
+#endif
+
+#if CSV_ENABLE_ASSERT
+# define CSV_NOFAIL(expr, val) CSV_ASSERT((expr) == (val))
+#else
+# define CSV_NOFAIL(expr, val) do { (void) (expr) ; } while (0)
+#endif
+
 #define CHUNKSIZE 1024*256
 #define KB 1024
 #define MB 1024 * KB
