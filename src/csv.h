@@ -171,17 +171,7 @@ typedef struct parser_t {
     int skip_empty_lines;
 } parser_t;
 
-parser_t* parser_new(void);
 
-int parser_init(parser_t *self);
-
-int parser_add_skiprow(parser_t *self, int64_t row);
-
-int parser_set_skipfirstnrows(parser_t *self, int64_t nrows);
-
-void parser_free(parser_t *self);
-
-void parser_set_default_options(parser_t *self);
 
 void debug_print_parser(parser_t *self);
 
@@ -190,6 +180,7 @@ int tokenize_nrows(parser_t *self, size_t nrows);
 int tokenize_all_rows(parser_t *self);
 
 parser_t *parser_create(Tcl_Interp *, int objc, Tcl_Obj *const objv[], int *pnrows);
+void parser_free(parser_t *self);
 
 int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
                  int objc, Tcl_Obj *const objv[]);

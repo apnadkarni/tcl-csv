@@ -15,8 +15,15 @@
 
 #include "csv.h"
 
+static parser_t* parser_new(void);
+static int parser_init(parser_t *self);
+static int parser_add_skiprow(parser_t *self, int64_t row);
+static int parser_set_skipfirstnrows(parser_t *self, int64_t nrows);
+static void parser_set_default_options(parser_t *self);
+
 KHASH_MAP_INIT_INT64(int64, size_t)
 
+#ifdef NOTUSED
 static void append_warning(parser_t *self, Tcl_Obj *msgObj)
 {
     if (self->warnObj == NULL) {
@@ -25,6 +32,7 @@ static void append_warning(parser_t *self, Tcl_Obj *msgObj)
     }
     Tcl_ListObjAppendElement(NULL, self->warnObj, msgObj);
 }
+#endif
 
 static void set_error(parser_t *self, Tcl_Obj *msgObj)
 {
@@ -32,13 +40,6 @@ static void set_error(parser_t *self, Tcl_Obj *msgObj)
     if (self->errorObj)
         Tcl_DecrRefCount(self->errorObj);
     self->errorObj = msgObj;
-}
-
-static void free_if_not_null(void **ptr) {
-    if (*ptr != NULL) {
-        free(*ptr);
-        *ptr = NULL;
-    }
 }
 
 static void unref_obj_if_not_null(Tcl_Obj **ppobj)
@@ -145,7 +146,6 @@ static int P_INLINE end_field(parser_t *self)
 static int end_line(parser_t *self)
 {
     int fields;
-    int ex_fields = self->expected_fields;
 
 #ifndef TBD
 
@@ -168,6 +168,7 @@ static int end_line(parser_t *self)
     self->file_lines++;
     self->lines++;
 #else // TBD
+    int ex_fields = self->expected_fields;
     if (self->lines > 0) {
         if (self->expected_fields >= 0) {
             ex_fields = self->expected_fields;
@@ -299,9 +300,8 @@ int parser_set_skipfirstnrows(parser_t *self, int64_t nrows)
 
 static int parser_buffer_bytes(parser_t *self, size_t nbytes)
 {
-    int status, chars_read;
+    int chars_read;
 
-    status = 0;
     self->datapos = 0;
     if (self->dataObj == NULL)
         self->dataObj = Tcl_NewObj();
@@ -1525,28 +1525,31 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
                 goto invalid_option_value;
             parser->lineterminator = *s;
             break;
-        default:
-            res = Tcl_GetBooleanFromObj(ip, objv[i+1], &ival);
-            if (res != TCL_OK)
+        case CSV_DOUBLEQUOTE:
+            if (Tcl_GetBooleanFromObj(ip, objv[i+1], &ival) != TCL_OK)
                 goto invalid_option_value;
-            switch ((enum switches_e) opt) {
-            case CSV_DOUBLEQUOTE:
-                parser->doublequote = ival;
-                break;
-            case CSV_IGNOREERRORS:
-                /* TBD - currently not used */
-                parser->error_bad_lines = ival;
-                break;
-            case CSV_SKIPBLANKLINES:
-                parser->skip_empty_lines = ival;
-                break;
-            case CSV_SKIPLEADINGSPACE:
-                parser->skipinitialspace = ival;
-                break;
-            case CSV_STRICT:
-                parser->strict = ival;
-                break;
-            }
+            parser->doublequote = ival;
+            break;
+        case CSV_IGNOREERRORS:
+            /* TBD - currently not used */
+            if (Tcl_GetBooleanFromObj(ip, objv[i+1], &ival) != TCL_OK)
+                goto invalid_option_value;
+            parser->error_bad_lines = ival;
+            break;
+        case CSV_SKIPBLANKLINES:
+            if (Tcl_GetBooleanFromObj(ip, objv[i+1], &ival) != TCL_OK)
+                goto invalid_option_value;
+            parser->skip_empty_lines = ival;
+            break;
+        case CSV_SKIPLEADINGSPACE:
+            if (Tcl_GetBooleanFromObj(ip, objv[i+1], &ival) != TCL_OK)
+                goto invalid_option_value;
+            parser->skipinitialspace = ival;
+            break;
+        case CSV_STRICT:
+            if (Tcl_GetBooleanFromObj(ip, objv[i+1], &ival) != TCL_OK)
+                goto invalid_option_value;
+            parser->strict = ival;
             break;
         }
     }
