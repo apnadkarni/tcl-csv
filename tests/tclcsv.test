@@ -25,6 +25,18 @@ proc reader_test {fd args} {
     }
 }
         
+proc reader_test_n {fd args} {
+    set reader [tclcsv::reader new {*}$args $fd]
+    set l {}
+    while {1} {
+        set rows [$reader next 2]
+        if {[llength $rows] == 0 && [$reader eof]} {
+            $reader destroy
+            return $l
+        }
+        lappend l {*}$rows
+    }
+}
 proc badoptval {opt arg} {
     tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
     if {$opt eq "-nrows"} {
@@ -38,6 +50,7 @@ proc t {text data expected args} {
     tcltest::test tclcsv-[incr ::testnum] $text -setup "set fd \[makechan [list $data]\]" -body "tclcsv::csv_read $args \$fd" -cleanup "close \$fd" -result $expected
     if {![dict exists $args -nrows]} {
         tcltest::test tclcsv-[incr ::testnum] "$text (reader)" -setup "set fd \[makechan [list $data]\]" -body "reader_test \$fd $args" -cleanup "close \$fd" -result $expected
+        tcltest::test tclcsv-[incr ::testnum] "$text (reader n)" -setup "set fd \[makechan [list $data]\]" -body "reader_test_n \$fd $args" -cleanup "close \$fd" -result $expected
     }
 }
 
@@ -170,8 +183,6 @@ tcltest::test dialect-2.0 {dialect unknown} -body {
 
 t "-dialect excel" $lftext {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} {*}[tclcsv::dialect excel]
 t "-dialect excel-tab" [string map [list , \t] $lftext] {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} {*}[tclcsv::dialect excel-tab]
-
-
 
 # TBD - size tests (large fields/lines)
 
