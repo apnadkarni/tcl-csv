@@ -340,7 +340,7 @@ proc tclcsv::sniff_header {args} {
         } else {
             lappend types2 $type
         }
-    }]
+    }
 
     if {$probably_header > 0} {
         return [list $types2 [lindex $rows 0]]

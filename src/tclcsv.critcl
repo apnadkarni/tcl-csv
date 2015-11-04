@@ -30,6 +30,7 @@ critcl::cheaders csv.h khash.h
 critcl::ccommand ::tclcsv::csv_read csv_read_cmd
 
 critcl::class::define ::tclcsv::reader {
+    method_introspection
     insvariable parser_t* parser {
         The CSV parser
     } {
@@ -41,13 +42,15 @@ critcl::class::define ::tclcsv::reader {
             goto error;
     }
     destructor {
-        if (instance->parser)
+        if (instance->parser) {
             parser_free(instance->parser);
+            instance->parser = NULL;
+        }
     }
     method eof proc {} int {
         return instance->parser->state == FINISHED;
     }
-    method next command {COUNT} {
+    method next command {?COUNT?} {
         int nrows, nread;
         parser_t *parser = instance->parser;
 
@@ -107,5 +110,5 @@ critcl::class::define ::tclcsv::reader {
     }
 }
 
-package provide tclcsv 1.0
+package provide tclcsv 2.0
 critcl::load

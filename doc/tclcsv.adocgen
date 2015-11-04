@@ -49,34 +49,58 @@ text {
 text {
     == General usage
 
-    The package currently provides a single command, `csv_read`, to read
-    CSV data from a channel. The command takes various options that
+    To use the extension, load it with `package require`:
+} script {
+    package require tclcsv
+} text {
+
+    The package provides two ways to read CSV data from a channel:
+
+    * The ((^ tclcsv_csv_read csv_read))
+    command parses CSV data and returns it as a list
+    of lists in a single call.
+    
+    * The ((^ tclcsv_reader reader))
+    command which returns a command object which can
+    then be used to incrementally return rows from the CSV data.
+    
+    Both forms take various options that
     indicate the specific dialect of CSV format such as the character
     used for delimiting fields, as well as options that limit which rows
     of the data are returned.
 
     [TIP]
-    If you want to parse the CSV data that is contained in a string,
-    you can use the `tcl::chan::string` package available as part
-    of http://tcl.activestate.com/software/tcllib/[tcllib]
-    as shown in the examples in this documentation.
-    You can load the package as
     ====
+    Although the `tclcsv` commands work with channels, not strings,
+    it is easy enough to parse CSV data that is contained in a string.
+    Use the `tcl::chan::string` package available as part
+    of http://tcl.activestate.com/software/tcllib/[tcllib].
+    You can load the package as
 } shell {
     package require tcl::chan::string
 } text {
+    and then create channels from string data
+    as shown in the examples in this documentation.
     ====
+
+    In addition to the commands for reading CSV data, the package
+    provides two convenience commands that are primarily intended
+    for interactive use when the format of the CSV data is not known.
+
+    * The ((^ tclcsv_sniff sniff)) command uses heuristics to determine
+    the format of the CSV data and returns a list of appropriate options
+    required for parsing it with the ((^ tclcsv_csv_read csv_read)) or
+    ((^ tclcsv_reader reader)) commands.
+
+    * The ((^ tclcsv_sniff_header sniff_header))
+    command uses heuristics to determine the types of the columns
+    in the CSV data and whether the data is prefixed with a header line.
 }
 
 
 text {
     == Command reference
 
-    To use the extension in your application, add the line
-} script {
-    package require tclcsv
-} text {
-    to your application.
     
     All commands are located in the `tclcsv` namespace.
 
@@ -84,7 +108,8 @@ text {
 
     ((cmddef tclcsv_csv_read "csv_read ?_OPTIONS_? _CHANNEL_"))
 
-    The command reads data from the specified channel and returns
+    The command reads data from the specified channel
+    (which must not be non-blocking) and returns
     a Tcl list each element of which is a list corresponding to
     one row in the read CSV data. The caller should have appropriately
     positioned the channel read pointer and configured its encoding before
@@ -170,6 +195,75 @@ text {
     The command does not require that all rows have the same number of
     fields. If required, the caller has to check that all returned rows
     have the same number of elements.
+}
+
+text {
+    ((cmddef tclcsv_reader "reader SUBCOMMAND ?_OPTIONS_?"))
+
+    This command takes one of the two forms shown below.
+} syntax {
+    reader create _CMDNAME_ ?_OPTIONS_? _CHANNEL_
+    reader new ?_OPTIONS_? _CHANNEL_
+} text {
+    Each form creates a command object that will _incrementally_
+    parse CSV data from the specified channel (which must not be non-blocking).
+    The caller should have appropriately
+    positioned the channel read pointer and configured its encoding before
+    calling this command.
+
+    The `reader create` command allows the caller
+    to specify the name of this command object whereas `reader new` will
+    generate a new unique name. Both return the name of the created command.
+
+    Options are as detailed for the ((^ tclcsv_csv_read csv_read))
+    command with the exception of the `-nrows` option which is not relevant
+    for this interface.
+    
+    The methods supported by the reader command objects are detailed below.
+    
+    ((cmddef tclcsv_reader_destroy "_READER_ destroy" 1))
+    Destroys the _READER_ command object. Note that closing the attached
+    channel is the caller's responsibility.
+    
+    ((cmddef tclcsv_reader_eof "_READER_ eof" 1))
+    Returns 1 if there are no more rows and 0 otherwise.
+    
+    ((cmddef tclcsv_reader_next "_READER_ next ?_COUNT_?" 1))
+    Returns one or more rows. If _COUNT_ is not specified, the return
+    value is a list corresponding to a single row.
+    If _COUNT_ is specified, the return value
+    is a list of up to _COUNT_ sublists each of which corresponds to a row.
+    Fewer than _COUNT_ rows may be returned if that many
+    are not available.
+    
+    Note that `_READER_ next` is _not_ the same as `_READER_ next 1`.
+    The former returns a single row, the latter returns a list containing
+    a single row.
+
+    When no more rows are available, the method returns an empty list.
+    This is not distinguishable from an empty line in the CSV input
+    if the `-skipblanklines` option was specified as `false`. The
+    ((^ tclcsv_reader_eof eof)) method may be used to distinguish
+    the two cases.
+
+    .Example
+
+    The following is an example of parsing using `reader` objects.
+} shell {
+    set fd [tcl::chan::string { \
+        r0c0, r0c1, r0c2
+        r1c0, r1c1, r1c2
+        r2c0, r2c1, r2c2
+        r3c0, r3c1, r3c2
+    }]
+    set reader [tclcsv::reader new -skipleadingspace 1 $fd]
+    $reader next
+    $reader next 1; # Note difference in return value from previous command
+    $reader next 2
+    $reader next
+    $reader eof
+    $reader destroy
+    close $fd
 }
 
 text {
