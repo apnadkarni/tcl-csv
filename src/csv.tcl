@@ -354,9 +354,9 @@ proc tclcsv::dialect {dialect} {
     set dialects [dict create]
     dict set dialects excel [list \
                                  -delimiter , \
-                                 -quotechar \" \
+                                 -quote \" \
                                  -doublequote 1 \
-                                 -skipinitialspace 0]
+                                 -skipleadingspace 0]
     dict set dialects excel-tab [dict merge [dict get $dialects excel] [list -delimiter \t]]
     proc [namespace current]::dialect {dialect} {
         variable dialects

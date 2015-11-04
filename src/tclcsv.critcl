@@ -31,6 +31,11 @@ critcl::ccommand ::tclcsv::csv_read csv_read_cmd
 
 critcl::class::define ::tclcsv::reader {
     method_introspection
+    insvariable int eof {
+        EOF flag
+    } {
+        instance->eof = 0;
+    }
     insvariable parser_t* parser {
         The CSV parser
     } {
@@ -48,7 +53,14 @@ critcl::class::define ::tclcsv::reader {
         }
     }
     method eof proc {} int {
-        return instance->parser->state == FINISHED;
+        return instance->eof;
+        if (instance->parser->state == FINISHED) {
+            int n;
+            CSV_NOFAIL(Tcl_ListObjLength(interp, instance->parser->rowsObj, &n), TCL_OK);
+            if (n == 0)
+                return 1;
+        }
+        return 0;
     }
     method next command {?COUNT?} {
         int nrows, nread;
@@ -67,8 +79,6 @@ critcl::class::define ::tclcsv::reader {
                 return TCL_ERROR;
             }
         }
-	if (parser->state == FINISHED) 
-            return TCL_OK; /* EOF -> Empty result */
 
         if (tokenize_nrows(parser, nrows) != 0 || parser->rowsObj == NULL) {
             if (parser->errorObj)
@@ -79,9 +89,10 @@ critcl::class::define ::tclcsv::reader {
         }
 
         CSV_NOFAIL(Tcl_ListObjLength(interp, parser->rowsObj, &nread), TCL_OK);
-        if (nread == 0)
+        if (nread == 0) {
+            instance->eof = 1;
             return TCL_OK; /* Empty result */
-            
+        }
         if (objc == 2) {
             /* Return a single row */
             Tcl_Obj *rowObj;

@@ -12,12 +12,33 @@ proc makechan s {
     return $fd
 }
 
+proc reader_test {fd args} {
+    set reader [tclcsv::reader new {*}$args $fd]
+    set l {}
+    while {1} {
+        set row [$reader next]
+        if {[llength $row] == 0 && [$reader eof]} {
+            $reader destroy
+            return $l
+        }
+        lappend l $row
+    }
+}
+        
 proc badoptval {opt arg} {
     tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
+    if {$opt eq "-nrows"} {
+        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Option -nrows is not valid in this mode" -returnCodes error
+    } else {
+        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
+    }
 }
 
 proc t {text data expected args} {
     tcltest::test tclcsv-[incr ::testnum] $text -setup "set fd \[makechan [list $data]\]" -body "tclcsv::csv_read $args \$fd" -cleanup "close \$fd" -result $expected
+    if {![dict exists $args -nrows]} {
+        tcltest::test tclcsv-[incr ::testnum] "$text (reader)" -setup "set fd \[makechan [list $data]\]" -body "reader_test \$fd $args" -cleanup "close \$fd" -result $expected
+    }
 }
 
 proc err {text data expected args} {
@@ -26,6 +47,10 @@ proc err {text data expected args} {
 
 set lftext "a,b c,d\n  e,f  ,g\n\n  \n,,\n#,comment,\nx,#comment\ny,z#comment"
 set crlftext [string map [list \n \r\n] $lftext]
+
+tcltest::test tclcsv-version {Ensure correct version being tested} -body {
+    package require tclcsv
+} -result 2.0
 
 set testnum 0
 
@@ -129,6 +154,24 @@ t "-nrows 2 -comment" "#comment\nline0\nline1\nline2\nline3" {line0 line1} -nrow
 t "-nrows 2 -skiplines 1" "line0\nline1\nline2\nline3" {line0 line3} -nrows 2 -skiplines {2 1}
 t "-nrows 2 -skiplines 1 -comment #" "#comment\nline0\nline1\nline2\nline3" {line2 line3} -nrows 2 -skiplines {2 1} -comment #
 t "-nrows 2 -skiplines 1 -comment #" "line0\n#comment\nline1\nline2\nline3" {line0 line2} -nrows 2 -skiplines {2 1} -comment #
+
+
+tcltest::test dialect-1.0 {dialect excel} -body {
+    tclcsv::dialect excel
+} -result [list -delimiter , -quote \" -doublequote 1 -skipleadingspace 0]
+
+tcltest::test dialect-1.1 {dialect excel-tab} -body {
+    tclcsv::dialect excel-tab
+} -result [list -delimiter \t -quote \" -doublequote 1 -skipleadingspace 0]
+
+tcltest::test dialect-2.0 {dialect unknown} -body {
+    tclcsv::dialect unknowndialect
+} -result "key \"unknowndialect\" not known in dictionary" -returnCodes error
+
+t "-dialect excel" $lftext {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} {*}[tclcsv::dialect excel]
+t "-dialect excel-tab" [string map [list , \t] $lftext] {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} {*}[tclcsv::dialect excel-tab]
+
+
 
 # TBD - size tests (large fields/lines)
 
