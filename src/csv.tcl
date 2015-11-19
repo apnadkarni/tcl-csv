@@ -250,7 +250,7 @@ proc tclcsv::_sniff {chan delimiters} {
 
 proc tclcsv::sniff_header {args} {
     if {[llength $args] == 0} {
-        error "wrong # args: should be \"sniff ?options? channel\""
+        error "wrong # args: should be \"sniff_header ?options? channel\""
     }
     set chan [lindex $args end]
 
@@ -260,25 +260,33 @@ proc tclcsv::sniff_header {args} {
     }
 
     try {
-        set rows [csv_read {*}[lrange $args 0 end-1] -nrows 20 $chan]
+        set rows [csv_read {*}[lrange $args 0 end-1] -nrows 100 $chan]
+        if {$rows < 2} {
+            error "Insufficient rows in CSV data to sniff headers."
+        }
         set width [llength [lindex $rows 0]]
-        set types [lrepeat $width unknown]
+        set types {}
+        for {set findex 0} {$findex < $width} {incr findex} {
+            dict set types $findex type unknown
+            dict set types $findex length [string length [lindex $rows 1 $findex]]
+        }
         foreach row [lrange $rows 1 end] {
             if {[llength $row] != $width} continue
             for {set findex 0} {$findex < $width} {incr findex} {
                 set val [lindex $row $findex]
-                set field_type [lindex $types $findex]
+                if {[string length $val] != [dict get $types $findex length]} {
+                    dict set types $findex length -1
+                }
+                set field_type [dict get $types $findex type]
                 if {$field_type eq "string"} continue
-                if {[string is integer $field_type]} {
-                    if {[string length $val] != $field_type} {
-                        # Field width is not the same. Treat as variable width
-                        lset types $findex string
-                    }
+                # Note values starting with 0 treated as strings (eg. zip codes)
+                if {[string index $val 0] eq "0"} {
+                    dict set types $findex type string
                     continue
                 }
                 if {$field_type eq "real"} {
                     if {![string is double -strict $val]} {
-                        lset types $findex string
+                        dict set types $findex type string
                     }
                     continue
                 }
@@ -286,26 +294,17 @@ proc tclcsv::sniff_header {args} {
                 # integer is not [string is wide] because we want to
                 # treat as decimal numbers and not parse as octals or hex
                 if {[regexp {^\d+$} $val]} {
-                    lset types $findex integer
+                    dict set types $findex type integer
                 } elseif {[string is double -strict $val]} {
-                    lset types $findex real
+                    dict set types $findex type real
                 } else {
-                    if {$field_type eq "unknown"} {
-                        lset types $findex [string length $val]
-                    } else {
-                        lset types $findex string
-                    }
+                    dict set types $findex type string
                 }
             }
-            # If all fields are strings, not point checking further
-            if {$types eq [lrepeat $width string]} break
         }
     } finally {
         chan seek $chan $seek_pos
     }
-
-    # Anything that we could not type is marked as string
-    set types [string map {unknown string} $types]
 
     # If we could determine that any one column was a non-string type
     # (integer or real) but the header field for that column is not
@@ -315,7 +314,10 @@ proc tclcsv::sniff_header {args} {
     # fixed width column is of a different width we raise the probability
     # of header existence and if of the same width, we lower the probability.
     set probably_header 0
-    foreach field [lindex $rows 0] type $types {
+    set row [lindex $rows 0]
+    for {set findex 0} {$findex < $width} {incr findex} {
+        set field [lindex $row $findex]
+        set type [dict get $types $findex type]
         if {($type eq "integer" && ![string is wide -strict $field]) ||
             ($type eq "real" && ![string is double -strict $field])
         } {
@@ -323,9 +325,9 @@ proc tclcsv::sniff_header {args} {
             set probably_header 1
             break
         }
-        # See if a fixed width header
-        if {[string is integer $type]} {
-            if {$type == [string length $field]} {
+        set len [dict get $types $findex length]
+        if {$len >= 0} {
+            if {$len == [string length $field]} {
                 incr probably_header -1
             } else {
                 incr probably_header 1
@@ -333,19 +335,15 @@ proc tclcsv::sniff_header {args} {
         }
     }
 
-    set types2 {}
-    foreach type $types {
-        if {[string is integer $type]} {
-            lappend types2 "string"
-        } else {
-            lappend types2 $type
-        }
+    set field_types {}
+    for {set findex 0} {$findex < $width} {incr findex} {
+        lappend field_types [dict get $types $findex type]
     }
 
     if {$probably_header > 0} {
-        return [list $types2 [lindex $rows 0]]
+        return [list $field_types $row]
     } else {
-        return [list $types2]
+        return [list $field_types]
     }
 }       
 
