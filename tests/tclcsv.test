@@ -63,7 +63,7 @@ set crlftext [string map [list \n \r\n] $lftext]
 
 tcltest::test tclcsv-version {Ensure correct version being tested} -body {
     package require tclcsv
-} -result 2.0
+} -result 2.0.1
 
 set testnum 0
 
