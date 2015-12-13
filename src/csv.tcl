@@ -280,7 +280,7 @@ proc tclcsv::sniff_header {args} {
                 set field_type [dict get $types $findex type]
                 if {$field_type eq "string"} continue
                 # Note values starting with 0 treated as strings (eg. zip codes)
-                if {[string index $val 0] eq "0"} {
+                if {[string index $val 0] eq "0" && [string length $val] > 1} {
                     dict set types $findex type string
                     continue
                 }
