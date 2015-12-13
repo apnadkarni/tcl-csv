@@ -52,6 +52,9 @@ static void unref_obj_if_not_null(Tcl_Obj **ppobj)
 
 void parser_set_default_options(parser_t *self)
 {
+    self->included_fields = NULL;
+    self->excluded_fields = NULL;
+    
     self->delimiter = ','; // XXX
     self->delim_whitespace = 0;
 
@@ -78,6 +81,53 @@ void parser_set_default_options(parser_t *self)
     self->skip_footer = 0;
 }
 
+static int parse_field_indices(Tcl_Obj *o, int *pnindices, char **ppindices)
+{
+    char *pindices = NULL;
+    int nindices = 0;
+    Tcl_Obj **objs;
+    int i, imax, nobjs;
+
+    /*
+     * List of indices is unsorted and may contain duplicates.
+     * Instead of building a list and searching it every time we are
+     * adding a field in end_field, we build an boolean array of size
+     * of the max index we encounter. Then just check this array in
+     * the end_field function before including/excluding the element
+     */
+
+    if (Tcl_ListObjGetElements(NULL, o, &nobjs, &objs) != TCL_OK) 
+        return TCL_ERROR;
+
+    /* If empty list, treat as unspecified */
+    if (nobjs == 0) {
+        *pnindices = 0;
+        *ppindices = NULL;
+        return TCL_OK;
+    }
+    
+    imax = -1;
+    for (i = 0; i < nobjs; ++i) {
+        int ix;
+        if (Tcl_GetIntFromObj(NULL, objs[i], &ix) != TCL_OK)
+            return TCL_ERROR;
+        if (ix < 0 || ix >= 1000)
+            return TCL_ERROR; /* Limit field count to 1000 */
+        if (ix > imax)
+            imax = ix;
+    }
+    pindices = calloc(imax+1, sizeof(*pindices));
+    for (i = 0; i < nobjs; ++i) {
+        int ix;
+        Tcl_GetIntFromObj(NULL, objs[i], &ix); /* No need for status check
+                                                  because of above loop */
+        pindices[ix] = 1;
+    }
+    *ppindices = pindices;
+    *pnindices = imax+1;
+    return TCL_OK;
+}
+
 static parser_t* parser_new()
 {
     return (parser_t*) calloc(1, sizeof(parser_t));
@@ -95,6 +145,14 @@ static void parser_cleanup(parser_t *self)
         kh_destroy_int64((kh_int64_t*) self->skipset);
         self->skipset = NULL;
     }
+    if (self->included_fields) {
+        free(self->included_fields);
+        self->included_fields = NULL;
+    }
+    if (self->excluded_fields) {
+        free(self->excluded_fields);
+        self->excluded_fields = NULL;
+    }
 }
 
 static int parser_init(parser_t *self)
@@ -105,6 +163,8 @@ static int parser_init(parser_t *self)
     self->lines = 0;
     self->file_lines = 0;
 
+    self->field_index = 0;
+    
     /* read bytes buffered */
     self->dataObj = Tcl_NewObj();
     Tcl_IncrRefCount(self->dataObj);
@@ -132,10 +192,32 @@ void parser_free(parser_t *self)
     free(self);
 }
 
-static int P_INLINE end_field(parser_t *self)
+static int end_field(parser_t *self)
 {
-    Tcl_ListObjAppendElement(NULL, self->rowObj, self->fieldObj);
+    int included;
+    /*
+     * A field is included only if it appears in the include list
+     * and not in the exclude list. No include list means all included.
+     * No exclude list means no exclusions from the include list.
+     */
+    included = 1;
+    if (self->included_fields != NULL &&
+        (self->field_index >= self->num_included_fields ||
+         self->included_fields[self->field_index] == 0))
+        included = 0;
+
+    /* If included, make sure it is not in the exclude list */
+    if (included) {
+        if (self->excluded_fields &&
+            self->field_index < self->num_excluded_fields &&
+            self->excluded_fields[self->field_index])
+            included = 0;
+    }
+    if (included)
+        Tcl_ListObjAppendElement(NULL, self->rowObj, self->fieldObj);
+
     Tcl_DecrRefCount(self->fieldObj);
+    self->field_index += 1;
     self->fieldObj = Tcl_NewObj();
     Tcl_IncrRefCount(self->fieldObj);
 
@@ -165,6 +247,7 @@ static int end_line(parser_t *self)
 
     TRACE(("end_line: Line end, nfields: %d\n", fields));
 
+    self->field_index = 0;
     self->file_lines++;
     self->lines++;
 #else // TBD
@@ -1416,15 +1499,17 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
     Tcl_Obj **objs;
     Tcl_Channel chan;
     static const char *switches[] = {
-        "-comment", "-delimiter", "-doublequote", "-escape",
-        "-ignoreerrors", "-nrows", "-quote", "-quoting",
+        "-comment", "-delimiter", "-doublequote", "-escape", 
+        "-excludefields", "-ignoreerrors", "-includefields", 
+        "-nrows", "-quote", "-quoting",
         "-skipblanklines", "-skipleadingspace", "-skiplines",
         "-startline", "-strict", "-terminator",
         NULL
     };
     enum switches_e {
         CSV_COMMENT, CSV_DELIMITER, CSV_DOUBLEQUOTE, CSV_ESCAPE,
-        CSV_IGNOREERRORS, CSV_NROWS, CSV_QUOTE, CSV_QUOTING,
+        CSV_EXCLUDEFIELDS, CSV_IGNOREERRORS, CSV_INCLUDEFIELDS,
+        CSV_NROWS, CSV_QUOTE, CSV_QUOTING,
         CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPLINES,
         CSV_STARTLINE, CSV_STRICT, CSV_TERMINATOR,
     };
@@ -1550,6 +1635,18 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             if (Tcl_GetBooleanFromObj(ip, objv[i+1], &ival) != TCL_OK)
                 goto invalid_option_value;
             parser->strict = ival;
+            break;
+        case CSV_INCLUDEFIELDS:
+            if (parse_field_indices(objv[i+1], 
+                                    &parser->num_included_fields,
+                                    &parser->included_fields) != TCL_OK)
+                goto invalid_option_value;
+            break;
+        case CSV_EXCLUDEFIELDS:
+            if (parse_field_indices(objv[i+1], 
+                                    &parser->num_excluded_fields,
+                                    &parser->excluded_fields) != TCL_OK)
+                goto invalid_option_value;
             break;
         }
     }

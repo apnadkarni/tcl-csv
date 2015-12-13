@@ -63,7 +63,7 @@ set crlftext [string map [list \n \r\n] $lftext]
 
 tcltest::test tclcsv-version {Ensure correct version being tested} -body {
     package require tclcsv
-} -result 2.0.1
+} -result 2.0.2
 
 set testnum 0
 
@@ -167,6 +167,25 @@ t "-nrows 2 -comment" "#comment\nline0\nline1\nline2\nline3" {line0 line1} -nrow
 t "-nrows 2 -skiplines 1" "line0\nline1\nline2\nline3" {line0 line3} -nrows 2 -skiplines {2 1}
 t "-nrows 2 -skiplines 1 -comment #" "#comment\nline0\nline1\nline2\nline3" {line2 line3} -nrows 2 -skiplines {2 1} -comment #
 t "-nrows 2 -skiplines 1 -comment #" "line0\n#comment\nline1\nline2\nline3" {line0 line2} -nrows 2 -skiplines {2 1} -comment #
+
+# -includefields -excludefields
+badoptval -includefields {1000}
+t "-includefields {}" "a,b,c\nd,e,f" {{a b c} {d e f}} -includefields {} 
+t "-includefields {1}" "a,b,c\nd,e,f" {b e} -includefields {1} 
+t "-includefields {0 2}" "a,b,c\nd,e,f" {{a c} {d f}} -includefields {0 2} 
+t "-includefields {0 2 999}" "a,b,c\nd,e,f" {{a c} {d f}} -includefields {0 2 999} 
+t "-includefields {2 2 0}" "a,b,c\nd,e,f" {{a c} {d f}} -includefields {2 2 0} 
+t "-includefields {2 1 0}" "a,b,c\nd,e,f" {{a b c} {d e f}} -includefields {2 1 0} 
+badoptval -excludefields {1000}
+t "-excludefields {}" "a,b,c\nd,e,f" {{a b c} {d e f}} -excludefields {} 
+t "-excludefields {0 1 2}" "a,b,c\nd,e,f" {{} {}} -excludefields {0 1 2} 
+t "-excludefields {1}" "a,b,c\nd,e,f" {{a c} {d f}} -excludefields {1} 
+t "-excludefields {0 2}" "a,b,c\nd,e,f" {b e} -excludefields {0 2} 
+t "-excludefields {2 0 2}" "a,b,c\nd,e,f" {b e} -excludefields {2 0 2} 
+t "-excludefields {999}" "a,b,c\nd,e,f" {{a b c} {d e f}} -excludefields {999} 
+t "-includefields {1} -excludefields {1}" "a,b,c\nd,e,f" {{} {}} -includefields {1} -excludefields {1} 
+t "-includefields {0 2} -excludefields {2}" "a,b,c\nd,e,f" {a d} -includefields {0 2} -excludefields {2}
+t "-includefields {2 1 0} -excludefields {999}" "a,b,c\nd,e,f" {{a b c} {d e f}} -includefields {2 1 0} -excludefields 999
 
 
 tcltest::test dialect-1.0 {dialect excel} -body {

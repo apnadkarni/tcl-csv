@@ -132,10 +132,25 @@ text {
     the channel until EOF is encountered and return the corresponding
     rows. The following options modify this behaviour:
 
-    ((.Table tab_tclcsv_rowopts "Options for filtering rows"))
+    ((.Table tab_tclcsv_rowopts "Options for filtering"))
     [cols="20,80"]
     |===
 
+    |`-excludefields _FIELDINDICES_`
+    |Specifies the list of indices of fields that are not to be included
+    in the returned data. The corresponding fields will not be included
+    even if they are specified via the `-includefields` option. If unspecified
+    or an empty list, fields are included as per the `-includefields` option.
+    
+    |`-includefields _FIELDINDICES_`
+    |Specifies the list of indices of fields that are to be included
+    in the returned data unless excluded by the `-excludefields` option.
+    Any fields whose indices are not present in _FIELDINDICES_ will
+    not be included in the returned rows.
+    If unspecified
+    or an empty list, all fields are included subject to the `-excludefields`
+    option.
+    
     |`-nrows _NROWS_`
     |If specified, stops after _NROWS_ rows are read. Note however that
     it does not guarantee that the channel read pointer is placed just beyond
@@ -400,4 +415,14 @@ text {
     implemented by the Python http://pandas.pydata.org[pandas] library.
 
     The hashing code is from https://github.com/attractivechaos/klib[attractivechaos].
+}
+
+text {
+    == Version history
+
+    .Version 2.1
+    
+    * Added options `-includefields` and `-excludefields`.
+
+    * Tweaks to `sniff_header` to improve type and header heuristics
 }

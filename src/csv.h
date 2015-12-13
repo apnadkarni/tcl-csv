@@ -134,6 +134,19 @@ typedef struct parser_t {
     int lines;            // Number of (good) lines observed
     int file_lines;       // Number of file lines observed (including bad or skipped)
 
+    /* 
+     * Caller can specify which fields are to be included / excluded.
+     * A field is included if its index appears in included_fields but
+     * not in excluded_fields. included_fields and excluded_fields are
+     * boolean (char) arrays indexed by field index.
+     */
+    char *included_fields;      /* If NULL, all included */
+    int  num_included_fields;   /* Size of included_fields */
+    char *excluded_fields;      /* If NULL, no exclusions */
+    int  num_excluded_fields;   /* Size of excluded_fields */
+    int  field_index;           /* Index of current field being parsed */
+
+    
     // Tokenizing stuff
     ParserState state;
     int doublequote;            /* is " represented by ""? */

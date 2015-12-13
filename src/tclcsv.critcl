@@ -121,5 +121,5 @@ critcl::class::define ::tclcsv::reader {
     }
 }
 
-package provide tclcsv 2.0.1
+package provide tclcsv 2.0.2
 critcl::load
