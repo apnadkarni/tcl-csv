@@ -48,6 +48,8 @@ snit::widget tclcsv::columnproperties {
 
 snit::widget tclcsv::configurator {
     hulltype ttk::frame
+
+    option -chan -default ""
     
     variable _optf;            # Option frame
     variable _charf;           # Character option frame
@@ -59,12 +61,16 @@ snit::widget tclcsv::configurator {
     variable _skipleadingspace 0
     variable _doublequote 1
     
-    variable _delimiter
-    variable _quotechar
-    variable _escchar
-    variable _commentchar
-    
-    constructor {args} {
+    variable _delimiter \t
+    variable _delimiter_e "";   # Contents of "Other" entry box
+    variable _quotechar \"
+    variable _quotechar_e ""
+    variable _escchar ""
+    variable _escchar_r ""
+    variable _commentchar ""
+    variable _commentchar_e ""
+
+    constructor {chan args} {
         $hull configure -borderwidth 0
 
         set _optf [ttk::frame $win.optf]
@@ -80,31 +86,64 @@ snit::widget tclcsv::configurator {
             ttk::checkbutton $_optf.cb$v -variable [myvar $v] -text $text -command [mymethod redisplay]
         }
 
-        set _charf [ttk::frame $win.charf]
-        foreach {v text} {
-            _delimiter {Delimiter}
-            _quotechar {Quote character}
-            _escchar   {Escape character}
-            _commentchar {Comment character}
-        } {
-            ttk::label $_charf.l$v -text $text
-            ttk::entry $_charf.e$v -textvariable [myvar $v] -width 1
-        }
+        # Delimiter selection
+        ttk::labelframe $win.f-delim -text Delimiter
+        ttk::radiobutton $win.f-delim.rb-tab -text Tab -value \t -variable [myvar _delimiter] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-delim.rb-space -text Space -value " " -variable [myvar _delimiter] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-delim.rb-comma -text Comma -value "," -variable [myvar _delimiter] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-delim.rb-semi -text Semicolon -value ";" -variable [myvar _delimiter] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-delim.rb-other -text Other -value "other" -variable [myvar _delimiter] -command [mymethod redisplay]
+        ttk::entry $win.f-delim.e-other -textvariable [myvar _delimiter_e] -width 1
+        grid $win.f-delim.rb-tab - -sticky nw
+        grid $win.f-delim.rb-space - -sticky nw
+        grid $win.f-delim.rb-comma - -sticky nw
+        grid $win.f-delim.rb-semi - -sticky nw
+        grid $win.f-delim.rb-other $win.f-delim.e-other -sticky nw
+
+        # Comment char
+        ttk::labelframe $win.f-comment -text "Comment character"
+        ttk::radiobutton $win.f-comment.rb-none -text None -value "" -variable [myvar _commentchar] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-comment.rb-hash -text "Hash (#)" -value "#" -variable [myvar _commentchar] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-comment.rb-other -text Other -value "other" -variable [myvar _commentchar] -command [mymethod redisplay]
+        ttk::entry $win.f-comment.e-other -textvariable [myvar _commentchar_e] -width 1
+        grid $win.f-comment.rb-none - -sticky nw
+        grid $win.f-comment.rb-hash - -sticky nw
+        grid $win.f-comment.rb-other $win.f-comment.e-other -sticky nw
+
+        # Escape char
+        ttk::labelframe $win.f-esc -text "Escape character"
+        ttk::radiobutton $win.f-esc.rb-none -text None -value "" -variable [myvar _escchar] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-esc.rb-hash -text "Backslash (\\)" -value "\\" -variable [myvar _escchar] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-esc.rb-other -text Other -value "other" -variable [myvar _escchar] -command [mymethod redisplay]
+        ttk::entry $win.f-esc.e-other -textvariable [myvar _escchar_e] -width 1
+        grid $win.f-esc.rb-none - -sticky nw
+        grid $win.f-esc.rb-hash - -sticky nw
+        grid $win.f-esc.rb-other $win.f-esc.e-other -sticky nw
+
+        # Quote char
+        ttk::labelframe $win.f-quote -text "Quote character"
+        ttk::radiobutton $win.f-quote.rb-none -text None -value "" -variable [myvar _quotechar] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-quote.rb-dquote -text "Double quote (\")" -value \" -variable [myvar _quotechar] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-quote.rb-squote -text "Single quote (')" -value \" -variable [myvar _quotechar] -command [mymethod redisplay]
+        ttk::radiobutton $win.f-quote.rb-other -text Other -value "other" -variable [myvar _quotechar] -command [mymethod redisplay]
+        ttk::entry $win.f-quote.e-other -textvariable [myvar _quotechar_e] -width 1
+        grid $win.f-quote.rb-none - -sticky nw
+        grid $win.f-quote.rb-dquote - -sticky nw
+        grid $win.f-quote.rb-squote - -sticky nw
+        grid $win.f-quote.rb-other $win.f-quote.e-other -sticky nw
 
         grid $_optf.cb_enc - -sticky news
-        grid $_optf.cb_hdrpresent $_optf.cb_doublequote -sticky news
-        grid $_optf.cb_skipblanklines $_optf.cb_skipleadingspace -sticky news
-
-        grid $_charf.l_delimiter $_charf.e_delimiter $_charf.l_quotechar $_charf.e_quotechar -sticky news
-        grid $_charf.l_escchar $_charf.e_escchar $_charf.l_commentchar $_charf.e_commentchar -sticky news
-        
+        grid $_optf.cb_hdrpresent $_optf.cb_doublequote $_optf.cb_skipblanklines $_optf.cb_skipleadingspace -sticky news
 
         pack $_optf -fill both -expand y
-        pack $_charf -fill both -expand y
+        pack $win.f-delim -fill both -expand y -side left
+        pack $win.f-comment -fill both -expand y -side left
+        pack $win.f-quote -fill both -expand y -side left
+        pack $win.f-esc -fill both -expand y -side left
         
     }
         
     method redisplay {} {
-        puts redisplay
+        
     }
 }
