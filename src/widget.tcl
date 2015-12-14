@@ -54,9 +54,9 @@ snit::widget tclcsv::configurator {
     option -encoding -default utf-8 -readonly 1 -configuremethod SetOptEncoding
 
     option -delimiter -default \t -configuremethod SetOptDelimiter -readonly 1
-    option -comment -default "" -configuremethod SetOptChar -readonly 1
-    option -escape -default "" -configuremethod SetOptChar -readonly 1
-    option -quote -default \" -configuremethod SetOptChar -readonly 1
+    option -comment -default "" -configuremethod SetOptCharPicker -readonly 1
+    option -escape -default "" -configuremethod SetOptCharPicker -readonly 1
+    option -quote -default \" -configuremethod SetOptCharPicker -readonly 1
     
     variable _optf;            # Option frame
     
@@ -84,59 +84,30 @@ snit::widget tclcsv::configurator {
         }
 
         # Delimiter selection
-        ttk::labelframe $win.f-delimiter -text Delimiter
-        ttk::radiobutton $win.f-delimiter.rb-tab -text Tab -value \t -variable [myvar options(-delimiter)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-delimiter.rb-space -text Space -value " " -variable [myvar options(-delimiter)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-delimiter.rb-comma -text Comma -value "," -variable [myvar options(-delimiter)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-delimiter.rb-semi -text Semicolon -value ";" -variable [myvar options(-delimiter)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-delimiter.rb-other -text Other -value "other" -variable [myvar options(-delimiter)] -command [mymethod redisplay]
-        $self MakeOtherEntry -delimiter \t
-        grid $win.f-delimiter.rb-tab - -sticky nw
-        grid $win.f-delimiter.rb-space - -sticky nw
-        grid $win.f-delimiter.rb-comma - -sticky nw
-        grid $win.f-delimiter.rb-semi - -sticky nw
-        grid $win.f-delimiter.rb-other $win.f-delimiter.e-other -sticky nw
-
+        set delimiterf [$self MakeCharPickerFrame -delimiter Delimiter \
+                            [list Tab \t Space { } Comma , Semicolon ";"] \
+                            \t]
+        
         # Comment char
-        ttk::labelframe $win.f-comment -text "Comment character"
-        ttk::radiobutton $win.f-comment.rb-none -text None -value "" -variable [myvar options(-comment)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-comment.rb-hash -text "Hash (#)" -value "#" -variable [myvar options(-comment)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-comment.rb-other -text Other -value "other" -variable [myvar options(-comment)] -command [mymethod redisplay]
-        $self MakeOtherEntry -comment
-        grid $win.f-comment.rb-none - -sticky nw
-        grid $win.f-comment.rb-hash - -sticky nw
-        grid $win.f-comment.rb-other $win.f-comment.e-other -sticky nw
+        set commentf [$self MakeCharPickerFrame -comment "Comment character" \
+                          [list None "" "Hash (#)" "#"]]
 
         # Escape char
-        ttk::labelframe $win.f-escape -text "Escape character"
-        ttk::radiobutton $win.f-escape.rb-none -text None -value "" -variable [myvar options(-escape)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-escape.rb-hash -text "Backslash (\\)" -value "\\" -variable [myvar options(-escape)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-escape.rb-other -text Other -value "other" -variable [myvar options(-escape)] -command [mymethod redisplay]
-        $self MakeOtherEntry -escape
-        grid $win.f-escape.rb-none - -sticky nw
-        grid $win.f-escape.rb-hash - -sticky nw
-        grid $win.f-escape.rb-other $win.f-escape.e-other -sticky nw
+        set escapef [$self MakeCharPickerFrame -escape "Escape character" \
+                          [list None "" "Backslash (\\)" "\\"]]
 
         # Quote char
-        ttk::labelframe $win.f-quote -text "Quote character"
-        ttk::radiobutton $win.f-quote.rb-none -text None -value "" -variable [myvar options(-quote)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-quote.rb-dquote -text "Double quote (\")" -value \" -variable [myvar options(-quote)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-quote.rb-squote -text "Single quote (')" -value "'" -variable [myvar options(-quote)] -command [mymethod redisplay]
-        ttk::radiobutton $win.f-quote.rb-other -text Other -value "other" -variable [myvar options(-quote)] -command [mymethod redisplay]
-        $self MakeOtherEntry -quote
-        grid $win.f-quote.rb-none - -sticky nw
-        grid $win.f-quote.rb-dquote - -sticky nw
-        grid $win.f-quote.rb-squote - -sticky nw
-        grid $win.f-quote.rb-other $win.f-quote.e-other -sticky nw
+        set quotef [$self MakeCharPickerFrame quote "Quote character" \
+                          [list None "" "Double quote (\")" "\"" "Single quote (')" "'"]]
 
         grid $_optf.cb_enc - -sticky news
         grid $_optf.cb_hdrpresent $_optf.cb_doublequote $_optf.cb_skipblanklines $_optf.cb_skipleadingspace -sticky news
 
         pack $_optf -fill both -expand y
-        pack $win.f-delimiter -fill both -expand y -side left -padx 2 -pady 2
-        pack $win.f-comment -fill both -expand y -side left -padx 2 -pady 2
-        pack $win.f-quote -fill both -expand y -side left -padx 2 -pady 2
-        pack $win.f-escape -fill both -expand y -side left -padx 2 -pady 2
+        pack $delimiterf -fill both -expand y -side left -padx 2 -pady 2
+        pack $commentf -fill both -expand y -side left -padx 2 -pady 2
+        pack $quotef -fill both -expand y -side left -padx 2 -pady 2
+        pack $escapef -fill both -expand y -side left -padx 2 -pady 2
         
         $self configurelist $args
     }
@@ -161,7 +132,7 @@ snit::widget tclcsv::configurator {
         }
     }
     
-    method SetOptChar {opt val} {
+    method SetOptCharPicker {opt val} {
         if {[string length $val] > 1} {
             error "Invalid value for option $opt. Must be a single character or the empty string."
         }
@@ -180,15 +151,15 @@ snit::widget tclcsv::configurator {
     # Creates a "Other" entry widget $e that enforces max one character
     # and is tied to a set of radio buttons
     # $opt is the associated option.
-    method MakeOtherEntry {opt {default_rb_value {}}} {
+    method MakeCharPickerEntry {opt {default_rb_value {}}} {
         set e $win.f${opt}.e-other
-        ttk::entry $e -textvariable [myvar _other($opt)] -width 2 -validate all -validatecommand [mymethod ValidateOtherEntry %d $opt %s %P $default_rb_value]
+        ttk::entry $e -textvariable [myvar _other($opt)] -width 2 -validate all -validatecommand [mymethod ValidateCharPickerEntry %d $opt %s %P $default_rb_value]
         return $e
     }
     
     # Validation callback for the "Other" entry fields. Ensures no more
     # than one char and also configures radio buttons based on content
-    method ValidateOtherEntry {validation_type opt old new {default_rb_value {}}} {
+    method ValidateCharPickerEntry {validation_type opt old new {default_rb_value {}}} {
         puts validation_type=$validation_type
         if {$validation_type == -1} {
             # Revalidation
@@ -208,6 +179,21 @@ snit::widget tclcsv::configurator {
             set options($opt) "other"
         }
         return 1
+    }
+
+    # Make a labelled frame containing the radiobuttons for selecting
+    # characters used for special purposes.
+    method MakeCharPickerFrame {opt title rblist {default_rb_value {}}} {
+        set f [ttk::labelframe $win.f$opt -text $title]
+        set rbi -1
+        foreach {label value} $rblist {
+            set w [ttk::radiobutton $f.rb[incr rbi] -text $label -value $value -variable [myvar options($opt)] -command [mymethod redisplay]]
+            grid $w - -sticky nw
+        }
+        set w [ttk::radiobutton $f.rb-other -text Other -value "other" -variable [myvar options($opt)] -command [mymethod redisplay]]
+        set e [$self MakeCharPickerEntry $opt $default_rb_value]
+        grid $w $e -sticky nw
+        return $f
     }
 
     method redisplay {} {
