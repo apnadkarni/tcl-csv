@@ -324,13 +324,14 @@ snit::widget tclcsv::configurator {
         grid $_optf.cb-encoding - -sticky news
         grid $_optf.cb-headerpresent $_optf.cb-doublequote $_optf.cb-skipblanklines $_optf.cb-skipleadingspace -sticky news
 
-        pack $_optf -fill both -expand y
+        pack $_optf -fill both -expand y -pady 4
         pack $delimiterf -fill both -expand y -side left -padx 2 -pady 2
         pack $commentf -fill both -expand y -side left -padx 2 -pady 2
         pack $quotef -fill both -expand y -side left -padx 2 -pady 2
         pack $escapef -fill both -expand y -side left -padx 2 -pady 2
-        pack $_charf -fill both -expand y
-        pack $_dataf -fill both -expand y -side bottom -anchor nw
+        pack $_charf -fill both -expand y -pady 4
+        pack [ttk::separator $win.sep] -fill x -expand y -pady 4
+        pack $_dataf -fill both -expand y -anchor nw
         
         $self configurelist $args
 
@@ -437,7 +438,16 @@ snit::widget tclcsv::configurator {
             grid [ttk::label $_dataf.l-nodata -text "No data to display"] -sticky nw
             return
         }
-        for {set i 0} {$i < $nrows} {incr i} {
+        set i 0
+        if {$options(-headerpresent)} {
+            for {set j 0} {$j < $ncols} {incr j} {
+                set l [ttk::label $f.l-$i-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
+                tclcsv::truncated_label $l [lindex $rows $i $j]
+                grid $l -row $i -column $j -sticky ew -padx 1
+            }
+            incr i
+        }
+        for {} {$i < $nrows} {incr i} {
             for {set j 0} {$j < $ncols} {incr j} {
                 set l [ttk::label $f.l-$i-$j -background white]
                 tclcsv::truncated_label $l [lindex $rows $i $j]
