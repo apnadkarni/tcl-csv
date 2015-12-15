@@ -155,19 +155,110 @@ snit::widget tclcsv::labelledcombo {
     method combobox {} {return $win.cb}
 }
 
-snit::widget tclcsv::columnproperties {
-    hulltype ttk::frame
-
-    constructor {args} {
-        $hull configure -borderwidth 0
-
-        ttk::label $win.l_title -text Title
-        ttk::entry $win.e_title -textvariable [myvar _title]
-        tclcsv::labelledcombo $win.lc_type -values {integer real string}
-        $win.lc_type set string
-        ttk::label $win.l_row0
-        ttk::label $win.l_row1
+#------------------------------------------------------------------------------
+# Copied from Csaba Nemethi's tablelist package
+# tablelist::strRange
+#
+# Gets the largest initial (for alignment = left or center) or final (for
+# alignment = right) range of characters from str whose width, when displayed
+# in the given font, is no greater than pixels decremented by the width of
+# snipStr.  Returns a string obtained from this substring by appending (for
+# alignment = left or center) or prepending (for alignment = right) (part of)
+# snipStr to it.
+#------------------------------------------------------------------------------
+proc tclcsv::fit_text {win str font pixels alignment snipStr} {
+    if {$pixels < 0} {
+        return ""
     }
+
+    set width [font measure $font -displayof $win $str]
+    if {$width <= $pixels} {
+        return $str
+    }
+
+    set snipWidth [font measure $font -displayof $win $snipStr]
+    if {$pixels <= $snipWidth} {
+        set str $snipStr
+        set snipStr ""
+    } else {
+        incr pixels -$snipWidth
+    }
+
+    if {[string compare $alignment "right"] == 0} {
+        set idx [expr {[string length $str]*($width - $pixels)/$width}]
+        set subStr [string range $str $idx end]
+        set width [font measure $font -displayof $win $subStr]
+        if {$width < $pixels} {
+            while 1 {
+                incr idx -1
+                set subStr [string range $str $idx end]
+                set width [font measure $font -displayof $win $subStr]
+                if {$width > $pixels} {
+                    incr idx
+                    set subStr [string range $str $idx end]
+                    return $snipStr$subStr
+                } elseif {$width == $pixels} {
+                    return $snipStr$subStr
+                }
+            }
+        } elseif {$width == $pixels} {
+            return $snipStr$subStr
+        } else {
+            while 1 {
+                incr idx
+                set subStr [string range $str $idx end]
+                set width [font measure $font -displayof $win $subStr]
+                if {$width <= $pixels} {
+                    return $snipStr$subStr
+                }
+            }
+        }
+
+    } else {
+        set idx [expr {[string length $str]*$pixels/$width - 1}]
+        set subStr [string range $str 0 $idx]
+        set width [font measure $font -displayof $win $subStr]
+        if {$width < $pixels} {
+            while 1 {
+                incr idx
+                set subStr [string range $str 0 $idx]
+                set width [font measure $font -displayof $win $subStr]
+                if {$width > $pixels} {
+                    incr idx -1
+                    set subStr [string range $str 0 $idx]
+                    return $subStr$snipStr
+                } elseif {$width == $pixels} {
+                    return $subStr$snipStr
+                }
+            }
+        } elseif {$width == $pixels} {
+            return $subStr$snipStr
+        } else {
+            while 1 {
+                incr idx -1
+                set subStr [string range $str 0 $idx]
+                set width [font measure $font -displayof $win $subStr]
+                if {$width <= $pixels} {
+                    return $subStr$snipStr
+                }
+            }
+        }
+    }
+}
+
+#
+# Given a label widget, find its size and fit its text accordingly
+proc tclcsv::fit_text_in_label {win text {align left} {font TkDefaultFont}} {
+    set width [winfo width $win]
+    if {$width < 2} {
+        set nchars [string length $text]
+        if {$nchars > 10} {
+            set nchars 10
+        }
+        set width [font measure $font -displayof $win [string repeat a $nchars]]
+    }
+    set text [fit_text $win $text $font $width $align \u2026]; # Ellipsis 
+    $win configure -text $text
 }
 
 snit::widget tclcsv::configurator {
@@ -246,6 +337,8 @@ snit::widget tclcsv::configurator {
         pack $_dataf -fill both -expand y -side bottom -anchor nw
         
         $self configurelist $args
+
+        $self Redisplay
     }
 
     destructor {
@@ -358,7 +451,9 @@ snit::widget tclcsv::configurator {
         }
         for {set i 0} {$i < $nrows} {incr i} {
             for {set j 0} {$j < $ncols} {incr j} {
-                grid [ttk::label $f.l-$i-$j -text [$self TruncateText [lindex $rows $i $j]]] -row $i -column $j -sticky ew
+                set l [ttk::label $f.l-$i-$j]
+                tclcsv::fit_text_in_label $l [lindex $rows $i $j]
+                grid $l -row $i -column $j -sticky ew
             }
         }
         after 0 after idle [list tclcsv::sframe resize $_dataf]
