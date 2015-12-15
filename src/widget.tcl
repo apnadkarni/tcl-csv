@@ -278,15 +278,26 @@ snit::widget tclcsv::configurator {
     
     variable _other;   # Contents of "Other" entry boxes indexed by option
 
+    # Stores information whether a column is included or not
+    # Array indexed by column number
+    variable _included_columns
+    variable _column_types
+    
     # Store state information about the channel we are reading from
     # name - channel name
     # original_position - original seek position
     # original_encoding - encoding to be restored
     variable _channel
 
+    variable _max_data_lines 10; # How many sample lines to read
+    variable _num_data_lines;    # Number actually read
+    variable _data_grid_first_data_row; # First row that contains actual values
+    
     constructor {chan args} {
         $hull configure -borderwidth 0
 
+        array set _included_columns {}
+        
         $self ChanInit $chan
 
         set _optf [ttk::frame $win.f-opt]
@@ -428,36 +439,92 @@ snit::widget tclcsv::configurator {
         return $f
     }
 
+    # Called when entire display has to be redone, for example when the
+    # delimiter is changed
     method Redisplay {} {
         set f [tclcsv::sframe content $_dataf]
         destroy {*}[winfo children $f]
         set rows [$self ChanRead]
         set nrows [llength $rows]
         set ncols [llength [lindex $rows 0]]
+        array unset _included_columns *
+        array unset _column_types *
+        
         if {$nrows == 0 || $ncols == 0} {
             grid [ttk::label $_dataf.l-nodata -text "No data to display"] -sticky nw
             return
         }
+
+        for {set j 0} {$j < $ncols} {incr j} {
+            # Widget for whether to include the column when reading data
+            set _included_columns($j) 1
+            set cb [ttk::checkbutton $f.cb-colinc-$j -text Include -variable [myvar _included_columns($j)] -command [mymethod IncludeColumn $j]]
+            grid $cb -sticky ew -padx 1 -row 0 -column $j
+
+            # Widget for specifying type of the column (for alignment)
+            set _column_types($j) string
+            set combo [ttk::combobox $f.cb-type-$j -width 8 -textvariable [myvar _column_types($j)] -values {string int32 int64 double boolean} -state readonly]
+            bind $combo <<ComboboxSelected>> [mymethod ChangeColumnType $j]
+            grid $combo -sticky ew -padx 1 -row 1 -column $j
+        }
+        set _data_grid_first_data_row 2
+        set grid_row $_data_grid_first_data_row
         set i 0
         if {$options(-headerpresent)} {
             for {set j 0} {$j < $ncols} {incr j} {
-                set l [ttk::label $f.l-$i-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
+                set l [ttk::label $f.l-$grid_row-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
                 tclcsv::truncated_label $l [lindex $rows $i $j]
-                grid $l -row $i -column $j -sticky ew -padx 1
+                grid $l -row $grid_row -column $j -sticky ew -padx 1
             }
             incr i
+            incr grid_row
         }
-        for {} {$i < $nrows} {incr i} {
+        for {} {$i < $nrows} {incr i; incr grid_row} {
             for {set j 0} {$j < $ncols} {incr j} {
-                set l [ttk::label $f.l-$i-$j -background white]
+                set l [ttk::label $f.l-$grid_row-$j -background white]
                 tclcsv::truncated_label $l [lindex $rows $i $j]
-                grid $l -row $i -column $j -sticky ew -padx 1
+                grid $l -row $grid_row -column $j -sticky ew -padx 1
             }
         }
         after 0 after idle [list tclcsv::sframe resize $_dataf]
         return
     }
 
+    method IncludeColumn {ci} {
+        set f [tclcsv::sframe content $_dataf]
+        set ri $_data_grid_first_data_row
+        set limit [expr {$ri + $_num_data_lines}]
+        if {$_included_columns($ci)} {
+            while {$ri < $limit} {
+                $f.l-$ri-$ci configure -state enabled
+                incr ri
+            }
+        } else {
+            while {$ri < $limit} {
+                $f.l-$ri-$ci configure -state disabled
+                incr ri
+            }
+        }
+        return
+    }
+       
+    method ChangeColumnType {ci} {
+        set f [tclcsv::sframe content $_dataf]
+        set ri $_data_grid_first_data_row
+        set limit [expr {$ri + $_num_data_lines}]
+        if {$_column_types($ci) eq "string"} {
+            while {$ri < $limit} {
+                $f.l-$ri-$ci configure -anchor w
+                incr ri
+            }
+        } else {
+            while {$ri < $limit} {
+                $f.l-$ri-$ci configure -anchor e
+                incr ri
+            }
+        }
+        return
+    }
     method ChanInit {chan} {
         set _channel(original_encoding) [chan configure $chan -encoding]
         set _channel(original_position)  [chan tell $chan]
@@ -473,12 +540,13 @@ snit::widget tclcsv::configurator {
         # Set the encoding if not already set
         chan configure $_channel(name) -encoding $options(-encoding)
 
-        set opts [list -nrows 5]
+        set opts [list -nrows $_max_data_lines]
         foreach opt {-delimiter -comment -escape -quote -skipleadingspace -skipblanklines -doublequote} {
             lappend opts $opt $options($opt)
         }
         set rows [tclcsv::csv_read {*}$opts $_channel(name)]
         chan seek $_channel(name) $_channel(original_position)
+        set _num_data_lines [llength $rows]
         return $rows
     }
 }
