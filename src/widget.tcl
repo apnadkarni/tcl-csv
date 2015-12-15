@@ -3,6 +3,130 @@ package require snit
 
 namespace eval tclcsv {}
 
+
+
+namespace eval tclcsv::sframe {
+    # sframe.tcl - from http://wiki.tcl.tk/9223
+    # Paul Walton
+    # Create a ttk-compatible, scrollable frame widget.
+    #   Usage:
+    #       sframe new <path> ?-toplevel true?  ?-anchor nsew?
+    #       -> <path>
+    #
+    #       sframe content <path>
+    #       -> <path of child frame where the content should go>
+
+    namespace ensemble create
+    namespace export *
+    
+    # Create a scrollable frame or window.
+    proc new {path args} {
+        # Use the ttk theme's background for the canvas and toplevel
+        set bg [ttk::style lookup TFrame -background]
+        if { [ttk::style theme use] eq "aqua" } {
+            # Use a specific color on the aqua theme as 'ttk::style lookup' is not accurate.
+            set bg "#e9e9e9"
+        }
+        
+        # Create the main frame or toplevel.
+        if { [dict exists $args -toplevel]  &&  [dict get $args -toplevel] } {
+            toplevel $path  -bg $bg
+        } else {
+            ttk::frame $path
+        }
+        
+        # Create a scrollable canvas with scrollbars which will always be the same size as the main frame.
+        set canvas [canvas $path.canvas -bg $bg -bd 0 -highlightthickness 0 -yscrollcommand [list $path.scrolly set] -xscrollcommand [list $path.scrollx set]]
+        ttk::scrollbar $path.scrolly -orient vertical   -command [list $canvas yview]
+        ttk::scrollbar $path.scrollx -orient horizontal -command [list $canvas xview]
+        
+        # Create a container frame which will always be the same size as the canvas or content, whichever is greater. 
+        # This allows the child content frame to be properly packed and also is a surefire way to use the proper ttk background.
+        set container [ttk::frame $canvas.container]
+        pack propagate $container 0
+        
+        # Create the content frame. Its size will be determined by its contents. This is useful for determining if the 
+        # scrollbars need to be shown.
+        set content [ttk::frame $container.content]
+        
+        # Pack the content frame and place the container as a canvas item.
+        set anchor "n"
+        if { [dict exists $args -anchor] } {
+            set anchor [dict get $args -anchor]
+        }
+        pack $content -anchor $anchor
+        $canvas create window 0 0 -window $container -anchor nw
+        
+        # Grid the scrollable canvas sans scrollbars within the main frame.
+        grid $canvas   -row 0 -column 0 -sticky nsew
+        grid rowconfigure    $path 0 -weight 1
+        grid columnconfigure $path 0 -weight 1
+        
+        # Make adjustments when the sframe is resized or the contents change size.
+        bind $path.canvas <Expose> [list [namespace current]::resize $path]
+        
+        # Mousewheel bindings for scrolling.
+        bind [winfo toplevel $path] <MouseWheel>       [list +[namespace current] scroll $path yview %W %D]
+        bind [winfo toplevel $path] <Shift-MouseWheel> [list +[namespace current] scroll $path xview %W %D]
+        
+        return $path
+    }
+    
+    
+    # Given the toplevel path of an sframe widget, return the path of the child frame suitable for content.
+    proc content {path} {
+        return $path.canvas.container.content
+    }
+    
+    
+    # Make adjustments when the the sframe is resized or the contents change size.
+    proc resize {path} {
+        set canvas    $path.canvas
+        set container $canvas.container
+        set content   $container.content
+        
+        # Set the size of the container. At a minimum use the same width & height as the canvas.
+        set width  [winfo width $canvas]
+        set height [winfo height $canvas]
+        
+        # If the requested width or height of the content frame is greater then use that width or height.
+        if { [winfo reqwidth $content] > $width } {
+            set width [winfo reqwidth $content]
+        }
+        if { [winfo reqheight $content] > $height } {
+            set height [winfo reqheight $content]
+        }
+        $container configure  -width $width  -height $height
+        
+        # Configure the canvas's scroll region to match the height and width of the container.
+        $canvas configure -scrollregion [list 0 0 $width $height]
+        
+        # Show or hide the scrollbars as necessary.
+        # Horizontal scrolling.
+        if { [winfo reqwidth $content] > [winfo width $canvas] } {
+            grid $path.scrollx  -row 1 -column 0 -sticky ew
+        } else {
+            grid forget $path.scrollx
+        }
+        # Vertical scrolling.
+        if { [winfo reqheight $content] > [winfo height $canvas] } {
+            grid $path.scrolly  -row 0 -column 1 -sticky ns
+        } else {
+            grid forget $path.scrolly
+        }
+        return
+    }
+    
+    
+    # Handle mousewheel scrolling.    
+    proc scroll {path view W D} {
+        if { [winfo exists $path.canvas]  &&  [string match $path.canvas* $W] } {
+            $path.canvas $view scroll [expr {-$D}] units
+        }
+        return
+    }
+}
+
 snit::widget tclcsv::labelledcombo {
     hulltype ttk::frame
 
@@ -49,8 +173,6 @@ snit::widget tclcsv::columnproperties {
 snit::widget tclcsv::configurator {
     hulltype ttk::frame
 
-    option -chan -default ""
-
     option -encoding -default utf-8 -readonly 1 -configuremethod SetOptEncoding
 
     option -delimiter -default \t -configuremethod SetOptDelimiter -readonly 1
@@ -58,29 +180,41 @@ snit::widget tclcsv::configurator {
     option -escape -default "" -configuremethod SetOptCharPicker -readonly 1
     option -quote -default \" -configuremethod SetOptCharPicker -readonly 1
     
-    variable _optf;            # Option frame
+    option -headerpresent -default 0 -readonly 1
+    option -skipblanklines -default 1 -readonly 1
+    option -skipleadingspace -default 0 -readonly 1
+    option -doublequote -default 1 -readonly 1
     
-    variable _hdrpresent 0
-    variable _skipblanklines 1
-    variable _skipleadingspace 0
-    variable _doublequote 1
+    variable _optf;            # Option frame
+    variable _charf;           # Character picker frame
+    variable _dataf;           # Data frame
     
     variable _other;   # Contents of "Other" entry boxes indexed by option
+
+    # Store state information about the channel we are reading from
+    # name - channel name
+    # original_position - original seek position
+    # original_encoding - encoding to be restored
+    variable _channel
 
     constructor {chan args} {
         $hull configure -borderwidth 0
 
-        set _optf [ttk::frame $win.optf]
+        $self ChanInit $chan
 
-        tclcsv::labelledcombo $_optf.cb_enc -text Encoding -textvariable [myvar options(-encoding)] -values [lsort [encoding names]] -state readonly
-        bind [$_optf.cb_enc combobox] <<ComboboxSelected>> [mymethod redisplay]
-        foreach {v text} {
-            _hdrpresent {Header present}
-            _skipblanklines {Skip blank lines}
-            _skipleadingspace {Skip leading spaces}
-            _doublequote {Double quotes}
+        set _optf [ttk::frame $win.f-opt]
+        set _charf [ttk::frame $win.f-char]
+        set _dataf [tclcsv::sframe new $win.f-data -anchor w]
+        
+        tclcsv::labelledcombo $_optf.cb-encoding -text Encoding -textvariable [myvar options(-encoding)] -values [lsort [encoding names]] -state readonly
+        bind [$_optf.cb-encoding combobox] <<ComboboxSelected>> [mymethod Redisplay]
+        foreach {opt text} {
+            -headerpresent {Header present}
+            -skipblanklines {Skip blank lines}
+            -skipleadingspace {Skip leading spaces}
+            -doublequote {Double quotes}
         } {
-            ttk::checkbutton $_optf.cb$v -variable [myvar $v] -text $text -command [mymethod redisplay]
+            ttk::checkbutton $_optf.cb$opt -variable [myvar options($opt)] -text $text -command [mymethod Redisplay]
         }
 
         # Delimiter selection
@@ -97,27 +231,36 @@ snit::widget tclcsv::configurator {
                           [list None "" "Backslash (\\)" "\\"]]
 
         # Quote char
-        set quotef [$self MakeCharPickerFrame quote "Quote character" \
-                          [list None "" "Double quote (\")" "\"" "Single quote (')" "'"]]
+        set quotef [$self MakeCharPickerFrame -quote "Quote character" \
+                          [list None "" "Double quote (\")" "\"" "Single quote (')" "'"] \"]
 
-        grid $_optf.cb_enc - -sticky news
-        grid $_optf.cb_hdrpresent $_optf.cb_doublequote $_optf.cb_skipblanklines $_optf.cb_skipleadingspace -sticky news
+        grid $_optf.cb-encoding - -sticky news
+        grid $_optf.cb-headerpresent $_optf.cb-doublequote $_optf.cb-skipblanklines $_optf.cb-skipleadingspace -sticky news
 
         pack $_optf -fill both -expand y
         pack $delimiterf -fill both -expand y -side left -padx 2 -pady 2
         pack $commentf -fill both -expand y -side left -padx 2 -pady 2
         pack $quotef -fill both -expand y -side left -padx 2 -pady 2
         pack $escapef -fill both -expand y -side left -padx 2 -pady 2
+        pack $_charf -fill both -expand y
+        pack $_dataf -fill both -expand y -side bottom -anchor nw
         
         $self configurelist $args
     }
 
+    destructor {
+        if {[info exists _channel(name)]} {
+            chan configure $_channel(name) -encoding $_channel(original_encoding)
+            chan seek $_channel(name) $_channel(original_position)
+        }
+    }
+    
     method SetOptEncoding {opt val} {
         if {$val ni [encoding names]} {
             error "Unknown encoding \"$val\"."
         }
         set options($opt) $val
-        $_optf.cb_enc set $options(-encoding)
+        $_optf.cb-encoding set $options(-encoding)
     }
     
     method SetOptDelimiter {opt val} {
@@ -152,7 +295,7 @@ snit::widget tclcsv::configurator {
     # and is tied to a set of radio buttons
     # $opt is the associated option.
     method MakeCharPickerEntry {opt {default_rb_value {}}} {
-        set e $win.f${opt}.e-other
+        set e $_charf.f${opt}.e-other
         ttk::entry $e -textvariable [myvar _other($opt)] -width 2 -validate all -validatecommand [mymethod ValidateCharPickerEntry %d $opt %s %P $default_rb_value]
         return $e
     }
@@ -160,7 +303,6 @@ snit::widget tclcsv::configurator {
     # Validation callback for the "Other" entry fields. Ensures no more
     # than one char and also configures radio buttons based on content
     method ValidateCharPickerEntry {validation_type opt old new {default_rb_value {}}} {
-        puts validation_type=$validation_type
         if {$validation_type == -1} {
             # Revalidation
         } else {
@@ -184,19 +326,66 @@ snit::widget tclcsv::configurator {
     # Make a labelled frame containing the radiobuttons for selecting
     # characters used for special purposes.
     method MakeCharPickerFrame {opt title rblist {default_rb_value {}}} {
-        set f [ttk::labelframe $win.f$opt -text $title]
+        set f [ttk::labelframe $_charf.f$opt -text $title]
         set rbi -1
         foreach {label value} $rblist {
-            set w [ttk::radiobutton $f.rb[incr rbi] -text $label -value $value -variable [myvar options($opt)] -command [mymethod redisplay]]
-            grid $w - -sticky nw
+            set w [ttk::radiobutton $f.rb[incr rbi] -text $label -value $value -variable [myvar options($opt)] -command [mymethod Redisplay]]
+            grid $w - -sticky ew
         }
-        set w [ttk::radiobutton $f.rb-other -text Other -value "other" -variable [myvar options($opt)] -command [mymethod redisplay]]
+        set w [ttk::radiobutton $f.rb-other -text Other -value "other" -variable [myvar options($opt)] -command [mymethod Redisplay]]
         set e [$self MakeCharPickerEntry $opt $default_rb_value]
-        grid $w $e -sticky nw
+        grid $w $e -sticky ew
         return $f
     }
 
-    method redisplay {} {
-       puts redisplay 
+    method TruncateText {s} {
+        if {[string length $s] > 20} {
+            return "[string range $s 0 16]..."
+        } else {
+            return $s
+        }
+    }
+
+    method Redisplay {} {
+        set f [tclcsv::sframe content $_dataf]
+        destroy {*}[winfo children $f]
+        set rows [$self ChanRead]
+        set nrows [llength $rows]
+        set ncols [llength [lindex $rows 0]]
+        if {$nrows == 0 || $ncols == 0} {
+            grid [ttk::label $_dataf.l-nodata -text "No data to display"] -sticky nw
+            return
+        }
+        for {set i 0} {$i < $nrows} {incr i} {
+            for {set j 0} {$j < $ncols} {incr j} {
+                grid [ttk::label $f.l-$i-$j -text [$self TruncateText [lindex $rows $i $j]]] -row $i -column $j -sticky ew
+            }
+        }
+        after 0 after idle [list tclcsv::sframe resize $_dataf]
+        return
+    }
+
+    method ChanInit {chan} {
+        set _channel(original_encoding) [chan configure $chan -encoding]
+        set _channel(original_position)  [chan tell $chan]
+        if {$_channel(original_position) == -1} {
+            error "Channel does not support seeking."
+        }
+        set _channel(name) $chan
+    }
+    
+    method ChanRead {} {
+        # Rewind the file to where we started from
+        chan seek $_channel(name) $_channel(original_position)
+        # Set the encoding if not already set
+        chan configure $_channel(name) -encoding $options(-encoding)
+
+        set opts [list -nrows 5]
+        foreach opt {-delimiter -comment -escape -quote -skipleadingspace -skipblanklines -doublequote} {
+            lappend opts $opt $options($opt)
+        }
+        set rows [tclcsv::csv_read {*}$opts $_channel(name)]
+        chan seek $_channel(name) $_channel(original_position)
+        return $rows
     }
 }
