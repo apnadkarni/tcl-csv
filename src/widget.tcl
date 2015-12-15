@@ -246,18 +246,14 @@ proc tclcsv::fit_text {win str font pixels alignment snipStr} {
     }
 }
 
-#
-# Given a label widget, find its size and fit its text accordingly
-proc tclcsv::fit_text_in_label {win text {align left} {font TkDefaultFont}} {
-    set width [winfo width $win]
-    if {$width < 2} {
-        set nchars [string length $text]
-        if {$nchars > 10} {
-            set nchars 10
-        }
+proc tclcsv::truncated_label {win text {align left} {font TkDefaultFont}} {
+    # Window has not been mapped yet. 
+    set nchars [string length $text]
+    if {$nchars > 10} {
+        set nchars 10
         set width [font measure $font -displayof $win [string repeat a $nchars]]
+        set text [fit_text $win $text $font $width $align \u2026]; # Ellipsis 
     }
-    set text [fit_text $win $text $font $width $align \u2026]; # Ellipsis 
     $win configure -text $text
 }
 
@@ -431,14 +427,6 @@ snit::widget tclcsv::configurator {
         return $f
     }
 
-    method TruncateText {s} {
-        if {[string length $s] > 20} {
-            return "[string range $s 0 16]..."
-        } else {
-            return $s
-        }
-    }
-
     method Redisplay {} {
         set f [tclcsv::sframe content $_dataf]
         destroy {*}[winfo children $f]
@@ -451,9 +439,9 @@ snit::widget tclcsv::configurator {
         }
         for {set i 0} {$i < $nrows} {incr i} {
             for {set j 0} {$j < $ncols} {incr j} {
-                set l [ttk::label $f.l-$i-$j]
-                tclcsv::fit_text_in_label $l [lindex $rows $i $j]
-                grid $l -row $i -column $j -sticky ew
+                set l [ttk::label $f.l-$i-$j -background white]
+                tclcsv::truncated_label $l [lindex $rows $i $j]
+                grid $l -row $i -column $j -sticky ew -padx 1
             }
         }
         after 0 after idle [list tclcsv::sframe resize $_dataf]
