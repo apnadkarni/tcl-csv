@@ -343,9 +343,8 @@ snit::widget tclcsv::configurator {
         pack $_charf -fill both -expand y -pady 4
         pack [ttk::separator $win.sep] -fill x -expand y -pady 4
         pack $_dataf -fill both -expand y -anchor nw
-        
-        $self configurelist $args
 
+        $self configurelist $args
         $self Redisplay
     }
 
@@ -536,6 +535,7 @@ snit::widget tclcsv::configurator {
         }
         return
     }
+
     method ChanInit {chan} {
         set _channel(original_encoding) [chan configure $chan -encoding]
         set _channel(original_position)  [chan tell $chan]
@@ -543,6 +543,17 @@ snit::widget tclcsv::configurator {
             error "Channel does not support seeking."
         }
         set _channel(name) $chan
+
+        # Guess the format of the CSV
+        array set options [tclcsv::sniff $chan]
+        if {[llength [tclcsv::sniff_header $chan]] > 1} {
+            set options(-headerpresent) 1
+        } else {
+            set options(-headerpresent) 0
+        }
+        # Note above setting will be overwritten by options passed by app
+        
+        return
     }
     
     method ChanRead {} {
