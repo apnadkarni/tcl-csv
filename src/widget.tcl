@@ -416,11 +416,16 @@ snit::widget tclcsv::configurator {
         if {[string length $new] == 0} {
             if {$options($opt) eq "other"} {
                 # "Other" radio selected and empty field, reset radio button
-                set options($opt) $default_rb_value 
+                # We used to reset to the default button but that does not work
+                # well when changing the content of the Other entry field
+                if {0} {
+                    set options($opt) $default_rb_value 
+                }
             }
         } else {
             set options($opt) "other"
         }
+        after idle after 0 [mymethod Redisplay]
         return 1
     }
 
@@ -442,11 +447,17 @@ snit::widget tclcsv::configurator {
     # Called when entire display has to be redone, for example when the
     # delimiter is changed
     method Redisplay {} {
-        set f [tclcsv::sframe content $_dataf]
-        destroy {*}[winfo children $f]
+        if {$options(-delimiter) eq "other" &&
+            (![info exists _other(-delimiter)] || $_other(-delimiter) eq "")} {
+            focus $_charf.f-delimiter.e-other
+            return
+        }
+            
         set rows [$self ChanRead]
         set nrows [llength $rows]
         set ncols [llength [lindex $rows 0]]
+        set f [tclcsv::sframe content $_dataf]
+        destroy {*}[winfo children $f]
         array unset _included_columns *
         array unset _column_types *
         
@@ -535,15 +546,26 @@ snit::widget tclcsv::configurator {
     }
     
     method ChanRead {} {
+        foreach opt {-delimiter -comment -escape -quote -skipleadingspace -skipblanklines -doublequote} {
+            if {$options($opt) ne "other"} {
+                lappend opts $opt $options($opt)
+            } elseif {[info exists _other($opt)]} {
+                lappend opts $opt $_other($opt)
+            } else {
+                lappend opts $opt ""
+            }
+        }
+        lappend opts -nrows $_max_data_lines
+
+        if {[dict get $opts -delimiter] eq ""} {
+            error "Delimiter must be specified."
+        }
+        
         # Rewind the file to where we started from
         chan seek $_channel(name) $_channel(original_position)
         # Set the encoding if not already set
         chan configure $_channel(name) -encoding $options(-encoding)
 
-        set opts [list -nrows $_max_data_lines]
-        foreach opt {-delimiter -comment -escape -quote -skipleadingspace -skipblanklines -doublequote} {
-            lappend opts $opt $options($opt)
-        }
         set rows [tclcsv::csv_read {*}$opts $_channel(name)]
         chan seek $_channel(name) $_channel(original_position)
         set _num_data_lines [llength $rows]
