@@ -272,16 +272,22 @@ snit::widget tclcsv::configurator {
     option -skipleadingspace -default 0 -readonly 1
     option -doublequote -default 1 -readonly 1
     
+    # If true, show the widgets to set column titles, types etc.
+    option -enablecolumnnames -default 0 -readonly 1
+    
     variable _optf;            # Option frame
     variable _charf;           # Character picker frame
     variable _dataf;           # Data frame
     
     variable _other;   # Contents of "Other" entry boxes indexed by option
 
-    # Stores information whether a column is included or not
-    # Array indexed by column number
+    # Stores information whether a column is included or not,
+    # column titles and types
+    # Arrays indexed by column number
     variable _included_columns
     variable _column_types
+    variable _column_names
+    variable _column_titles
     
     # Store state information about the channel we are reading from
     # name - channel name
@@ -289,9 +295,10 @@ snit::widget tclcsv::configurator {
     # original_encoding - encoding to be restored
     variable _channel
 
-    variable _max_data_lines 10; # How many sample lines to read
+    variable _max_data_lines 6; # How many sample lines to read
     variable _num_data_lines;    # Number actually read
     variable _data_grid_first_data_row; # First row that contains actual values
+    variable _data_grid_first_data_col; # First col that contains actual values
     
     constructor {chan args} {
         $hull configure -borderwidth 0
@@ -300,17 +307,17 @@ snit::widget tclcsv::configurator {
         
         $self ChanInit $chan
 
-        set _optf [ttk::frame $win.f-opt]
+        set _optf [ttk::frame $win.f-opt -padding 4]
         set _charf [ttk::frame $win.f-char]
         set _dataf [tclcsv::sframe new $win.f-data -anchor w]
         
         tclcsv::labelledcombo $_optf.cb-encoding -text Encoding -textvariable [myvar options(-encoding)] -values [lsort [encoding names]] -state readonly
         bind [$_optf.cb-encoding combobox] <<ComboboxSelected>> [mymethod Redisplay]
         foreach {opt text} {
-            -headerpresent {Header present}
-            -skipblanklines {Skip blank lines}
-            -skipleadingspace {Skip leading spaces}
-            -doublequote {Double quotes}
+            -headerpresent {First line contains a header}
+            -skipblanklines {Skip lines that are empty}
+            -skipleadingspace {Ignore leading spaces in fields}
+            -doublequote {Quotes are represented by doubling}
         } {
             ttk::checkbutton $_optf.cb$opt -variable [myvar options($opt)] -text $text -command [mymethod Redisplay]
         }
@@ -332,8 +339,11 @@ snit::widget tclcsv::configurator {
         set quotef [$self MakeCharPickerFrame -quote "Quote character" \
                           [list None "" "Double quote (\")" "\"" "Single quote (')" "'"] \"]
 
-        grid $_optf.cb-encoding - -sticky news
-        grid $_optf.cb-headerpresent $_optf.cb-doublequote $_optf.cb-skipblanklines $_optf.cb-skipleadingspace -sticky news
+        grid $_optf.cb-encoding - -sticky ew
+        grid $_optf.cb-headerpresent $_optf.cb-skipblanklines -sticky ew
+        grid $_optf.cb-doublequote $_optf.cb-skipleadingspace -sticky ew
+        grid columnconfigure $_optf all -weight 1
+        
 
         pack $_optf -fill both -expand y -pady 4
         pack $delimiterf -fill both -expand y -side left -padx 2 -pady 2
@@ -465,35 +475,59 @@ snit::widget tclcsv::configurator {
             return
         }
 
-        for {set j 0} {$j < $ncols} {incr j} {
+        if {$options(-enablecolumnnames)} {
+            set _data_grid_first_data_row 5
+            set _data_grid_first_data_col 1
+            grid [ttk::label $f.l-colname -text "Name:"] -sticky ew -padx 1 -row 1 -column 0
+            grid [ttk::label $f.l-title -text "Title:"] -sticky ew -padx 1 -row 2 -column 0
+            grid [ttk::label $f.l-coltype -text "Type:"] -sticky ew -padx 1 -row 3 -column 0
+            grid [ttk::separator $f.sep-0 -orient horizontal] -sticky ew -padx 1 -row 4 -column 0
+        } else {
+            set _data_grid_first_data_row 1
+            set _data_grid_first_data_col 0
+        }
+        set grid_col $_data_grid_first_data_col
+        for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
             # Widget for whether to include the column when reading data
             set _included_columns($j) 1
             set cb [ttk::checkbutton $f.cb-colinc-$j -text Include -variable [myvar _included_columns($j)] -command [mymethod IncludeColumn $j]]
-            grid $cb -sticky ew -padx 1 -row 0 -column $j
+            grid $cb -sticky ew -padx 1 -row 0 -column $grid_col
 
-            # Widget for specifying type of the column (for alignment)
-            set _column_types($j) string
-            set combo [ttk::combobox $f.cb-type-$j -width 8 -textvariable [myvar _column_types($j)] -values {string int32 int64 double boolean} -state readonly]
-            bind $combo <<ComboboxSelected>> [mymethod ChangeColumnType $j]
-            grid $combo -sticky ew -padx 1 -row 1 -column $j
+            if {$options(-enablecolumnnames)} {
+                # Entry boxes for name and title of column
+                set e [ttk::entry $f.e-name-$j -textvariable [myvar _column_names($j)]]
+                grid $e -sticky ew -padx 1 -row 1 -column $grid_col
+                set e [ttk::entry $f.e-title-$j -textvariable [myvar _column_titles($j)]]
+                grid $e -sticky ew -padx 1 -row 2 -column $grid_col
+                
+                # Widget for specifying type of the column (for alignment)
+                set _column_types($j) string
+                set combo [ttk::combobox $f.cb-type-$j -width 8 -textvariable [myvar _column_types($j)] -values {string int32 int64 double boolean} -state readonly]
+                bind $combo <<ComboboxSelected>> [mymethod ChangeColumnType $j]
+                grid $combo -sticky ew -padx 1 -row 3 -column $grid_col
+                
+                # Separate the meta fields from data
+                grid [ttk::separator $f.sep-$grid_col -orient horizontal] -sticky ew -padx 5 -row 4 -column 0
+            }
         }
-        set _data_grid_first_data_row 2
         set grid_row $_data_grid_first_data_row
+        set grid_col $_data_grid_first_data_col
         set i 0
         if {$options(-headerpresent)} {
-            for {set j 0} {$j < $ncols} {incr j} {
+            for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
                 set l [ttk::label $f.l-$grid_row-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
                 tclcsv::truncated_label $l [lindex $rows $i $j]
-                grid $l -row $grid_row -column $j -sticky ew -padx 1
+                grid $l -row $grid_row -column $grid_col -sticky ew -padx 1
             }
             incr i
             incr grid_row
         }
         for {} {$i < $nrows} {incr i; incr grid_row} {
-            for {set j 0} {$j < $ncols} {incr j} {
+            set grid_col $_data_grid_first_data_col
+            for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
                 set l [ttk::label $f.l-$grid_row-$j -background white]
                 tclcsv::truncated_label $l [lindex $rows $i $j]
-                grid $l -row $grid_row -column $j -sticky ew -padx 1
+                grid $l -row $grid_row -column $grid_col -sticky ew -padx 1
             }
         }
         after 0 after idle [list tclcsv::sframe resize $_dataf]
@@ -574,9 +608,26 @@ snit::widget tclcsv::configurator {
         
         # Rewind the file to where we started from
         chan seek $_channel(name) $_channel(original_position)
-        # Set the encoding if not already set
         chan configure $_channel(name) -encoding $options(-encoding)
 
+        # Figure out the header if necessary but only overwrite existing
+        # headers if number of columns has changed
+        if {$options(-enablecolumnnames)} {
+            set headers [tclcsv::sniff_header {*}$opts $_channel(name)]
+            if {[llength $headers] > 1} {
+                set titles [lindex $headers 1]
+                if {![info exists _column_titles] ||
+                    [array size _column_titles] != [llength $titles]} {
+                    array unset _column_titles *
+                    for {set i 0} {$i < [llength $titles]} {incr i} {
+                        set title [lindex $titles $i]
+                        set _column_titles($i) $title
+                        set _column_names($i) [regsub {[^[:alnum:]_]} $title _]
+                    }
+                }
+            }
+        }
+        
         set rows [tclcsv::csv_read {*}$opts $_channel(name)]
         chan seek $_channel(name) $_channel(original_position)
         set _num_data_lines [llength $rows]
