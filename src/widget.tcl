@@ -127,34 +127,6 @@ namespace eval tclcsv::sframe {
     }
 }
 
-snit::widget tclcsv::labelledcombo {
-    hulltype ttk::frame
-
-    component _label
-    delegate option -text to _label
-    
-    component _combo
-    delegate option -textvariable to _combo
-    delegate option -values to _combo
-    delegate option -state to _combo
-    delegate method set to _combo
-    delegate method get to _combo
-    
-    constructor {args} {
-        $hull configure -borderwidth 0
-
-        install _label using ttk::label $win.l
-        install _combo using ttk::combobox $win.cb
-
-        $self configurelist $args
-
-        pack $win.l $win.cb -side left
-    }
-
-    method label {} {return $win.l}
-    method combobox {} {return $win.cb}
-}
-
 #------------------------------------------------------------------------------
 # Copied from Csaba Nemethi's tablelist package
 # tablelist::strRange
@@ -311,8 +283,11 @@ snit::widget tclcsv::configurator {
         set _charf [ttk::frame $win.f-char]
         set _dataf [tclcsv::sframe new $win.f-data -anchor w]
         
-        tclcsv::labelledcombo $_optf.cb-encoding -text Encoding -textvariable [myvar options(-encoding)] -values [lsort [encoding names]] -state readonly
-        bind [$_optf.cb-encoding combobox] <<ComboboxSelected>> [mymethod Redisplay]
+        ttk::frame $_optf.f-encoding
+        ttk::label $_optf.f-encoding.l -text "Character Encoding"
+        ttk::combobox $_optf.f-encoding.cb -textvariable [myvar options(-encoding)] -values [lsort [encoding names]] -state readonly
+        bind $_optf.f-encoding.cb <<ComboboxSelected>> [mymethod Redisplay]
+        pack $_optf.f-encoding.l $_optf.f-encoding.cb -side left -fill both -expand n
         foreach {opt text} {
             -headerpresent {First line contains a header}
             -skipblanklines {Skip lines that are empty}
@@ -339,7 +314,7 @@ snit::widget tclcsv::configurator {
         set quotef [$self MakeCharPickerFrame -quote "Quote character" \
                           [list None "" "Double quote (\")" "\"" "Single quote (')" "'"] \"]
 
-        grid $_optf.cb-encoding - -sticky ew
+        grid $_optf.f-encoding - -sticky ew
         grid $_optf.cb-headerpresent $_optf.cb-skipblanklines -sticky ew
         grid $_optf.cb-doublequote $_optf.cb-skipleadingspace -sticky ew
         grid columnconfigure $_optf all -weight 1
