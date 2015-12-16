@@ -564,22 +564,14 @@ snit::widget tclcsv::configurator {
         
         return
     }
-    
-    method ChanRead {} {
-        foreach opt {-delimiter -comment -escape -quote -skipleadingspace -skipblanklines -doublequote} {
-            if {$options($opt) ne "other"} {
-                lappend opts $opt $options($opt)
-            } elseif {[info exists _other($opt)]} {
-                lappend opts $opt $_other($opt)
-            } else {
-                lappend opts $opt ""
-            }
-        }
-        lappend opts -nrows $_max_data_lines
 
+    method ChanRead {} {
+        set opts [$self CollectCsvOptions]
         if {[dict get $opts -delimiter] eq ""} {
             error "Delimiter must be specified."
         }
+        
+        lappend opts -nrows $_max_data_lines
         
         # Rewind the file to where we started from
         chan seek $_channel(name) $_channel(original_position)
@@ -607,5 +599,55 @@ snit::widget tclcsv::configurator {
         chan seek $_channel(name) $_channel(original_position)
         set _num_data_lines [llength $rows]
         return $rows
+    }
+
+    method CollectCsvOptions {} {
+        foreach opt {-delimiter -comment -escape -quote -skipleadingspace -skipblanklines -doublequote} {
+            if {$options($opt) ne "other"} {
+                lappend opts $opt $options($opt)
+            } elseif {[info exists _other($opt)]} {
+                lappend opts $opt $_other($opt)
+            } else {
+                lappend opts $opt ""
+            }
+        }
+        return $opts
+    }
+    
+    method options {} {
+        set opts [$self CollectCsvOptions]
+        if {[dict get $opts -delimiter] eq ""} {
+            dict unset opts -delimiter
+        }
+        if {$options(-headerpresent)} {
+            lappend opts -startline 1
+        }
+    }
+
+    method columnconfig {} {
+        if {!$options(-enablecolumnnames)} {
+            error "Option -enablecolumnnames was not specified as true."
+        }
+        set ncols [array size _column_names]
+        set header {}
+        for {set i 0} {$i < $ncols} {incr i} {
+            if {[info exists _column_names($i)] && $_column_names($i) ne ""} {
+                set name $_column_names($i)
+            } else {
+                set name "Column_$i"
+            }
+            if {[info exists _column_titles($i)] && $_column_titles($i) ne ""} {
+                set title $_column_titles($i)
+            } else {
+                set title $name
+            }
+            if {[info exists _column_types($i)] && $_column_types($i) ne ""} {
+                set type $_column_types($i)
+            } else {
+                set type string
+            }
+            lappend header [list name $name title $title type $type]
+        }
+        return $header
     }
 }
