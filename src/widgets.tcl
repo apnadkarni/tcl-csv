@@ -476,9 +476,9 @@ snit::widget tclcsv::dialectpicker {
             grid [ttk::label $f.l-colname -text "Name:"] -sticky ew -padx 1 -row 1 -column 0
             grid [ttk::label $f.l-title -text "Title:"] -sticky ew -padx 1 -row 2 -column 0
             grid [ttk::label $f.l-coltype -text "Type:"] -sticky ew -padx 1 -row 3 -column 0
-            grid [ttk::separator $f.sep-0 -orient horizontal] -sticky ew -padx 1 -row 4 -column 0
+            grid [ttk::separator $f.sep-0 -orient horizontal] -sticky ew -padx 1 -row 4 -column 0 -pady 4
         } else {
-            set _data_grid_first_data_row 1
+            set _data_grid_first_data_row 2
             set _data_grid_first_data_col 0
         }
         set grid_col $_data_grid_first_data_col
@@ -501,9 +501,9 @@ snit::widget tclcsv::dialectpicker {
                 bind $combo <<ComboboxSelected>> [mymethod ChangeColumnType $j]
                 grid $combo -sticky ew -padx 1 -row 3 -column $grid_col
                 
-                # Separate the meta fields from data
-                grid [ttk::separator $f.sep-$grid_col -orient horizontal] -sticky ew -padx 5 -row 4 -column 0
             }
+            # Separate the meta fields from data
+            grid [ttk::separator $f.sep-$grid_col -orient horizontal] -sticky ew -padx 1 -row [expr {$_data_grid_first_data_row-1}] -column $grid_col -pady 4
         }
         set grid_row $_data_grid_first_data_row
         set grid_col $_data_grid_first_data_col
@@ -729,7 +729,10 @@ Tom Brady,4,38,27000000,9000000.00,0.00
     if {$response eq "ok"} {
         puts "encoding: [.dlg.pick encoding]"
         puts "dialect: [.dlg.pick dialectsettings]"
-        puts "columns: [.dlg.pick columnsettings]"
+        if {[dict exists $args -enablecolumnnames] &&
+            [dict get $args -enablecolumnnames]} {
+            puts "columns: [.dlg.pick columnsettings]"
+        }
     }
     close $fd
     destroy .dlg
