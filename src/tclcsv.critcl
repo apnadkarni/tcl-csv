@@ -23,9 +23,10 @@ critcl::ccode {
     #include "csv.h"
 }
 
-critcl::tsources csv.tcl
+critcl::tsources csv.tcl widget.tcl
 critcl::csources csv.c
 critcl::cheaders csv.h khash.h
+critcl::owns widget.tcl
 
 critcl::ccommand ::tclcsv::csv_read csv_read_cmd
 

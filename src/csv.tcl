@@ -5,6 +5,11 @@
 # See the file license.terms for license
 #
 
+namespace eval tclcsv {
+    variable script_dir
+    set script_dir [file dirname [info script]]
+}
+
 proc tclcsv::_sniff2 {chan delimiters} {
     set seek_pos [chan tell $chan]
     if {$seek_pos == -1} {
@@ -377,4 +382,9 @@ proc tclcsv::sniff {args} {
     return [_sniff $chan $opts(-delimiters)]
 }
 
-    
+proc tclcsv::dialectpicker args {
+    variable script_dir
+    uplevel #0 {package require Tk; package require snit}
+    uplevel #0 [list source [file join $script_dir widget.tcl]]
+    uplevel 1 tclcsv::dialectpicker $args
+}

@@ -1,9 +1,28 @@
-package require Tk
-package require snit
+#
+# Copyright (c) 2015, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file license.terms for license
+#
+
+# Workaround for critcl sourcing of all Tcl files:
+#
+# critcl will automatically source all files listed through tsources.
+# We don't however want to load Tk and snit unless the application actually
+# uses these widgets. Thus we check for the presence of these packages
+# and simply return if they are not loaded. The dialectpicker proc
+# in csv.tcl loads these and then sources this file again so they
+# are only loaded when the app actually invokes them.
+
+if {![llength [info commands snit::widget]] ||
+    ![llength [info commands winfo]]} {
+    return
+}
+    
+# package require Tk
+# package require snit
 
 namespace eval tclcsv {}
-
-
 
 namespace eval tclcsv::sframe {
     # sframe.tcl - from http://wiki.tcl.tk/9223
@@ -229,7 +248,7 @@ proc tclcsv::truncated_label {win text {align left} {font TkDefaultFont}} {
     $win configure -text $text
 }
 
-snit::widget tclcsv::configurator {
+snit::widget tclcsv::dialectpicker {
     hulltype ttk::frame
 
     option -encoding -default utf-8 -readonly 1 -configuremethod SetOptEncoding
