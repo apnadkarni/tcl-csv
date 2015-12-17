@@ -352,7 +352,8 @@ snit::widget tclcsv::dialectpicker {
     }
 
     destructor {
-        if {[info exists _channel(name)]} {
+        if {[info exists _channel(name)] &&
+            $_channel(name) in [chan names]} {
             chan configure $_channel(name) -encoding $_channel(original_encoding)
             chan seek $_channel(name) $_channel(original_position)
         }
@@ -633,7 +634,13 @@ snit::widget tclcsv::dialectpicker {
         return $opts
     }
     
-    method options {} {
+    method encoding {} {
+        # Not part of dialectsettings because that can be passed directly
+        # to csv_read
+        return $options(-encoding)
+    }
+    
+    method dialectsettings {} {
         set opts [$self CollectCsvOptions]
         if {[dict get $opts -delimiter] eq ""} {
             dict unset opts -delimiter
@@ -658,7 +665,7 @@ snit::widget tclcsv::dialectpicker {
         return $opts
     }
 
-    method columnconfig {} {
+    method columnsettings {} {
         if {!$options(-enablecolumnnames)} {
             error "Option -enablecolumnnames was not specified as true."
         }
@@ -684,4 +691,46 @@ snit::widget tclcsv::dialectpicker {
         }
         return $header
     }
+}
+
+proc tclcsv::testdialectpicker {args} {
+    package require tcl::chan::string
+    package require widget::dialog
+    
+    set data {
+Player,Superbowls,Age,Total Dollars,Average,Guaranteed
+Jay Cutler,0,32,126700000,18100000.00,0.43
+Joe Flacco,1,30,120600000,20100000.00,0.24
+Colin Kaepernick,0,28,114000000,19000000.00,0.54
+Aaron Rodgers,1,32,110000000,22000000.00,0.49
+Tony Romo,0,35,108000000,18000000.00,0.51
+Cam Newton,0,26,103800000,20760000.00,0.58
+Matt Ryan,0,30,103750000,20750000.00,0.40
+Drew Brees,1,36,100000000,20000000.00,0.40
+Andy Dalton,0,28,96000000,16000000.00,0.18
+Russell Wilson,1,27,87600000,21900000.00,0.70
+Ben Roethlisberger,2,33,87400000,21850000.00,0.35
+Eli Manning,2,34,84000000,21000000.00,0.77
+Philip Rivers,0,34,83250000,20812500.00,0.78
+Sam Bradford,0,28,78045000,13007500.00,0.64
+Ryan Tannehill,0,27,77000000,19250000.00,0.58
+Alex Smith,0,31,68000000,17000000.00,0.66
+Matthew Stafford,0,27,53000000,17666667.00,0.78
+Carson Palmer,0,35,49500000,16500000.00,0.41
+Peyton Manning,1,39,34000000,17000000.00,0.44
+Tom Brady,4,38,27000000,9000000.00,0.00
+    }
+    set fd [tcl::chan::string $data]
+    destroy .dlg
+    widget::dialog .dlg -type okcancel
+    dialectpicker .dlg.pick $fd {*}$args
+    .dlg setwidget .dlg.pick
+    set response [.dlg display]
+    if {$response eq "ok"} {
+        puts "encoding: [.dlg.pick encoding]"
+        puts "dialect: [.dlg.pick dialectsettings]"
+        puts "columns: [.dlg.pick columnsettings]"
+    }
+    close $fd
+    destroy .dlg
 }
