@@ -641,6 +641,21 @@ snit::widget tclcsv::dialectpicker {
         if {$options(-headerpresent)} {
             lappend opts -startline 1
         }
+        set ncols [array size _included_columns]
+        set included {}
+        for {set i 0} {$i < $ncols} {incr i} {
+            if {[info exists _included_columns($i)] && $_included_columns($i)} {
+                lappend included $i
+            }
+        }
+        if {[llength $included] == 0} {
+            # Exclude all
+            lappend opts -excludefields [lsort -integer [array names _included_columns]]
+        } elseif {[llength $included] != $ncols} {
+            # Only subset of columns included
+            lappend opts -includefields $included
+        }
+        return $opts
     }
 
     method columnconfig {} {
