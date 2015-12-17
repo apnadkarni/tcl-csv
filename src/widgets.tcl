@@ -263,20 +263,26 @@ snit::widget tclcsv::dialectpicker {
     option -skipleadingspace -default 0 -readonly 1
     option -doublequote -default 1 -readonly 1
     
-    # If true, show the widgets to set column titles, types etc.
-    option -enablecolumnnames -default 0 -readonly 1
-    
     variable _optf;            # Option frame
     variable _charf;           # Character picker frame
     variable _dataf;           # Data frame
     
-    variable _other;   # Contents of "Other" entry boxes indexed by option
+    variable _other;   # Array contents of "Other" entry boxes indexed by option
 
+    # If specified, the column metadata widgets are displayed
+    # (name, type etc.). The value must be a dictionary keyed by a
+    # data type token, with nested keys align and display (both optional)
+    option -columntypes -default "" -readonly 1 -configuremethod SetOptColumnTypes
+    # Array mapping display strings to column type tokens
+    variable _column_type_display_to_token
+
+    # Stores display strings of column types. Array indexed by col number
+    variable _column_type_display_strings
+    
     # Stores information whether a column is included or not,
-    # column titles and types
+    # column titles and names
     # Arrays indexed by column number
     variable _included_columns
-    variable _column_types
     variable _column_names
     variable _column_titles
     
@@ -356,6 +362,36 @@ snit::widget tclcsv::dialectpicker {
             $_channel(name) in [chan names]} {
             chan configure $_channel(name) -encoding $_channel(original_encoding)
             chan seek $_channel(name) $_channel(original_position)
+        }
+    }
+    
+    method SetOptColumnTypes {opt val} {
+        # Make sure the types returned by sniff_header are included
+        if {![dict exists $val string]} {
+            dict set val string {display String align left}
+        }
+        if {![dict exists $val real]} {
+            dict set val real {display {Real number} align right}
+        }
+        if {![dict exists $val integer]} {
+            dict set val integer {display Integer align right}
+        }
+        set options(-columntypes) $val
+        
+        dict for {tok meta} $options(-columntypes) {
+            # Fill in any display strings that are not set
+            if {![dict exists $meta display] ||
+                [dict get $meta display] eq ""} {
+                dict set options(-columntypes) $tok display $tok
+            }
+            # Likewise, fill in alignment
+            if {![dict exists $meta align] ||
+                [dict get $meta align] ni {left right center centre}} {
+                dict set options(-columntypes) $tok align left
+            }
+
+            # Build map of display strings to tokens
+            set _column_type_display_to_token([dict get $options(-columntypes) $tok display]) $tok
         }
     }
     
@@ -463,14 +499,13 @@ snit::widget tclcsv::dialectpicker {
         set f [tclcsv::sframe content $_dataf]
         destroy {*}[winfo children $f]
         array unset _included_columns *
-        array unset _column_types *
         
         if {$nrows == 0 || $ncols == 0} {
             grid [ttk::label $_dataf.l-nodata -text "No data to display"] -sticky nw
             return
         }
 
-        if {$options(-enablecolumnnames)} {
+        if {[dict size $options(-columntypes)]} {
             set _data_grid_first_data_row 5
             set _data_grid_first_data_col 1
             grid [ttk::label $f.l-colname -text "Name:"] -sticky ew -padx 1 -row 1 -column 0
@@ -482,13 +517,14 @@ snit::widget tclcsv::dialectpicker {
             set _data_grid_first_data_col 0
         }
         set grid_col $_data_grid_first_data_col
+        set type_display_strings [$self ColumnTypeDisplayStrings]
         for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
             # Widget for whether to include the column when reading data
             set _included_columns($j) 1
             set cb [ttk::checkbutton $f.cb-colinc-$j -text Include -variable [myvar _included_columns($j)] -command [mymethod IncludeColumn $j]]
             grid $cb -sticky ew -padx 1 -row 0 -column $grid_col
 
-            if {$options(-enablecolumnnames)} {
+            if {[dict size $options(-columntypes)]} {
                 # Entry boxes for name and title of column
                 set e [ttk::entry $f.e-name-$j -textvariable [myvar _column_names($j)]]
                 grid $e -sticky ew -padx 1 -row 1 -column $grid_col
@@ -496,8 +532,7 @@ snit::widget tclcsv::dialectpicker {
                 grid $e -sticky ew -padx 1 -row 2 -column $grid_col
                 
                 # Widget for specifying type of the column (for alignment)
-                set _column_types($j) string
-                set combo [ttk::combobox $f.cb-type-$j -width 8 -textvariable [myvar _column_types($j)] -values {string int32 int64 double boolean} -state readonly]
+                set combo [ttk::combobox $f.cb-type-$j -width 8 -textvariable [myvar _column_type_display_strings($j)] -values $type_display_strings -state readonly]
                 bind $combo <<ComboboxSelected>> [mymethod ChangeColumnType $j]
                 grid $combo -sticky ew -padx 1 -row 3 -column $grid_col
                 
@@ -505,6 +540,9 @@ snit::widget tclcsv::dialectpicker {
             # Separate the meta fields from data
             grid [ttk::separator $f.sep-$grid_col -orient horizontal] -sticky ew -padx 1 -row [expr {$_data_grid_first_data_row-1}] -column $grid_col -pady 4
         }
+
+        # grid_row tracks the row in the display widget
+        # i tracks the data row index
         set grid_row $_data_grid_first_data_row
         set grid_col $_data_grid_first_data_col
         set i 0
@@ -520,7 +558,12 @@ snit::widget tclcsv::dialectpicker {
         for {} {$i < $nrows} {incr i; incr grid_row} {
             set grid_col $_data_grid_first_data_col
             for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
-                set l [ttk::label $f.l-$grid_row-$j -background white]
+                if {[$self ColumnAlignment $j] eq "right"} {
+                    set anchor e
+                } else {
+                    set anchor w
+                }
+                set l [ttk::label $f.l-$grid_row-$j -background white -anchor $anchor]
                 tclcsv::truncated_label $l [lindex $rows $i $j]
                 grid $l -row $grid_row -column $grid_col -sticky ew -padx 1
             }
@@ -551,20 +594,37 @@ snit::widget tclcsv::dialectpicker {
         set f [tclcsv::sframe content $_dataf]
         set ri $_data_grid_first_data_row
         set limit [expr {$ri + $_num_data_lines}]
-        if {$_column_types($ci) eq "string"} {
-            while {$ri < $limit} {
-                $f.l-$ri-$ci configure -anchor w
-                incr ri
-            }
+        if {[$self ColumnAlignment $ci] eq "right"} {
+            set anchor e
         } else {
-            while {$ri < $limit} {
-                $f.l-$ri-$ci configure -anchor e
-                incr ri
-            }
+            set anchor w
+        }
+        while {$ri < $limit} {
+            $f.l-$ri-$ci configure -anchor $anchor
+            incr ri
         }
         return
     }
 
+    # Constructs the list of display strings corresponding to column
+    # type tokens.
+    method ColumnTypeDisplayStrings {} {
+        set l {}
+        # Note we do not just get the keys from _column_type_display_to_token
+        # because that would be in random order
+        dict for {key meta} $options(-columntypes) {
+            lappend l [dict get $meta display]
+        }
+        return $l
+    }
+
+    # Returns the alignment for a column (left or right)
+    method ColumnAlignment {ci} {
+        set display $_column_type_display_strings($ci)
+        set coltype $_column_type_display_to_token($display)
+        return [dict get $options(-columntypes) $coltype align]
+    }
+    
     method ChanInit {chan} {
         set _channel(original_encoding) [chan configure $chan -encoding]
         set _channel(original_position)  [chan tell $chan]
@@ -599,8 +659,17 @@ snit::widget tclcsv::dialectpicker {
 
         # Figure out the header if necessary but only overwrite existing
         # headers if number of columns has changed
-        if {$options(-enablecolumnnames)} {
+        if {[dict size $options(-columntypes)]} {
             set headers [tclcsv::sniff_header {*}$opts $_channel(name)]
+            set types [lindex $headers 0]
+            if {![info exists _column_type_display_strings] ||
+                [array size _column_type_display_strings] != [llength $types]} {
+                array unset _column_type_display_strings *
+                for {set i 0} {$i < [llength $types]} {incr i} {
+                    set coltype [lindex $types $i]
+                    set _column_type_display_strings($i) [dict get $options(-columntypes) $coltype display]
+                }
+            }
             if {[llength $headers] > 1} {
                 set titles [lindex $headers 1]
                 if {![info exists _column_titles] ||
@@ -609,7 +678,7 @@ snit::widget tclcsv::dialectpicker {
                     for {set i 0} {$i < [llength $titles]} {incr i} {
                         set title [lindex $titles $i]
                         set _column_titles($i) $title
-                        set _column_names($i) [regsub {[^[:alnum:]_]} $title _]
+                        set _column_names($i) [regsub -all {[^[:alnum:]_]} $title _]
                     }
                 }
             }
@@ -666,8 +735,8 @@ snit::widget tclcsv::dialectpicker {
     }
 
     method columnsettings {} {
-        if {!$options(-enablecolumnnames)} {
-            error "Option -enablecolumnnames was not specified as true."
+        if {[dict size $options(-columntypes)] == 0} {
+            error "Option -columntypes was not specified."
         }
         set ncols [array size _column_names]
         set header {}
@@ -682,11 +751,8 @@ snit::widget tclcsv::dialectpicker {
             } else {
                 set title $name
             }
-            if {[info exists _column_types($i)] && $_column_types($i) ne ""} {
-                set type $_column_types($i)
-            } else {
-                set type string
-            }
+            set display $_column_type_display_strings($i)
+            set type $_column_type_display_to_token($display)
             lappend header [list name $name title $title type $type]
         }
         return $header
@@ -698,7 +764,7 @@ proc tclcsv::testdialectpicker {args} {
     package require widget::dialog
     
     set data {
-Player,Superbowls,Age,Total Dollars,Average,Guaranteed
+Player,# Superbowls Won,Age,Total Dollars,Average,Guaranteed
 Jay Cutler,0,32,126700000,18100000.00,0.43
 Joe Flacco,1,30,120600000,20100000.00,0.24
 Colin Kaepernick,0,28,114000000,19000000.00,0.54
@@ -729,8 +795,8 @@ Tom Brady,4,38,27000000,9000000.00,0.00
     if {$response eq "ok"} {
         puts "encoding: [.dlg.pick encoding]"
         puts "dialect: [.dlg.pick dialectsettings]"
-        if {[dict exists $args -enablecolumnnames] &&
-            [dict get $args -enablecolumnnames]} {
+        if {[dict exists $args -columntypes] &&
+            [dict size [dict get $args -columntypes]]} {
             puts "columns: [.dlg.pick columnsettings]"
         }
     }
