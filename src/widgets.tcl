@@ -309,9 +309,9 @@ snit::widget tclcsv::dialectpicker {
         pack $_optf.f-encoding.l $_optf.f-encoding.cb -side left -fill both -expand n
         foreach {opt text} {
             -headerpresent {First line contains a header}
+            -doublequote {Quotes are represented by doubling}
             -skipblanklines {Skip lines that are empty}
             -skipleadingspace {Ignore leading spaces in fields}
-            -doublequote {Quotes are represented by doubling}
         } {
             ttk::checkbutton $_optf.cb$opt -variable [myvar options($opt)] -text $text -command [mymethod Redisplay]
         }
@@ -325,27 +325,26 @@ snit::widget tclcsv::dialectpicker {
         set commentf [$self MakeCharPickerFrame -comment "Comment character" \
                           [list None "" "Hash (#)" "#"]]
 
-        # Escape char
-        set escapef [$self MakeCharPickerFrame -escape "Escape character" \
-                          [list None "" "Backslash (\\)" "\\"]]
-
         # Quote char
         set quotef [$self MakeCharPickerFrame -quote "Quote character" \
                           [list None "" "Double quote (\")" "\"" "Single quote (')" "'"] \"]
 
+        # Escape char
+        set escapef [$self MakeCharPickerFrame -escape "Escape character" \
+                          [list None "" "Backslash (\\)" "\\"]]
+
         grid $_optf.f-encoding - -sticky ew
         grid $_optf.cb-headerpresent $_optf.cb-skipblanklines -sticky ew
         grid $_optf.cb-doublequote $_optf.cb-skipleadingspace -sticky ew
-        grid columnconfigure $_optf all -weight 1
+        grid columnconfigure $_optf all -weight 1 -uniform width
         
+        pack $_optf -fill none -expand n -pady 4 -anchor w
+        
+        grid $delimiterf $commentf $quotef $escapef -padx 2 -pady 2 -sticky news
+        grid columnconfigure $_charf all -uniform width -weight 1
+        pack $_charf -fill none -expand n -pady 4 -anchor w
 
-        pack $_optf -fill both -expand y -pady 4
-        pack $delimiterf -fill both -expand y -side left -padx 2 -pady 2
-        pack $commentf -fill both -expand y -side left -padx 2 -pady 2
-        pack $quotef -fill both -expand y -side left -padx 2 -pady 2
-        pack $escapef -fill both -expand y -side left -padx 2 -pady 2
-        pack $_charf -fill both -expand y -pady 4
-        pack [ttk::separator $win.sep] -fill x -expand y -pady 4
+        pack [ttk::separator $win.sep] -fill x -expand n -pady 4
         pack $_dataf -fill both -expand y -anchor nw
 
         $self configurelist $args
@@ -443,7 +442,8 @@ snit::widget tclcsv::dialectpicker {
         }
         set w [ttk::radiobutton $f.rb-other -text Other -value "other" -variable [myvar options($opt)] -command [mymethod Redisplay]]
         set e [$self MakeCharPickerEntry $opt $default_rb_value]
-        grid $w $e -sticky ew
+        grid $w $e -sticky w
+        grid columnconfigure $f all -uniform width
         return $f
     }
 
