@@ -385,6 +385,6 @@ proc tclcsv::sniff {args} {
 proc tclcsv::dialectpicker args {
     variable script_dir
     uplevel #0 {package require Tk; package require snit}
-    uplevel #0 [list source [file join $script_dir widget.tcl]]
+    uplevel #0 [list source [file join $script_dir widgets.tcl]]
     uplevel 1 tclcsv::dialectpicker $args
 }
