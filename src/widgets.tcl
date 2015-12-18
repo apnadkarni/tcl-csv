@@ -248,26 +248,44 @@ proc tclcsv::truncated_label {win text {align left} {font TkDefaultFont}} {
     $win configure -text $text
 }
 
+#
+# And finally, my own code
+
+# A megawidget to permit various options for parsing CSV to be configured
 snit::widget tclcsv::dialectpicker {
     hulltype ttk::frame
 
+    # 
+    # Options related to parsing the CSV. These can be specified by the
+    # caller to initialize the settings for reading CSV data. They can
+    # then be changed interactively by the user through the various
+    # displayed widgets which are attached to them via -textvariable or
+    # -variable
+
+    # File encoding
     option -encoding -default utf-8 -readonly 1 -configuremethod SetOptEncoding
 
+    # Special character settings
     option -delimiter -default \t -configuremethod SetOptDelimiter -readonly 1
     option -comment -default "" -configuremethod SetOptCharPicker -readonly 1
     option -escape -default "" -configuremethod SetOptCharPicker -readonly 1
     option -quote -default \" -configuremethod SetOptCharPicker -readonly 1
+    # Holds the "Other" entry content for specifying special characters
+    # Array indexed by option
+    variable _other;   # Array contents of "Other" entry boxes indexed by option
     
-    option -headerpresent -default 0 -readonly 1
     option -skipblanklines -default 1 -readonly 1
     option -skipleadingspace -default 0 -readonly 1
     option -doublequote -default 1 -readonly 1
-    
+    option -headerpresent -default 0 -readonly 1
+
+    #
+    # The three main data frames containing the options, the special
+    # character configuration and the sample data
     variable _optf;            # Option frame
     variable _charf;           # Character picker frame
     variable _dataf;           # Data frame
     
-    variable _other;   # Array contents of "Other" entry boxes indexed by option
 
     # If specified, the column metadata widgets are displayed
     # (name, type etc.). The value must be a dictionary keyed by a
@@ -280,7 +298,8 @@ snit::widget tclcsv::dialectpicker {
     variable _column_type_display_strings
     
     # Stores information whether a column is included or not,
-    # column titles and names
+    # column titles and names. Only used if caller specified the
+    # -columntypes option
     # Arrays indexed by column number
     variable _included_columns
     variable _column_names
@@ -302,17 +321,22 @@ snit::widget tclcsv::dialectpicker {
 
         array set _included_columns {}
         
+        # Init channel and remember original settings for restoring in
+        # destructor
         $self ChanInit $chan
 
+        # The three main frames
         set _optf [ttk::frame $win.f-opt -padding 4]
         set _charf [ttk::frame $win.f-char]
         set _dataf [tclcsv::sframe new $win.f-data -anchor w]
         
+        # File character encoding
         ttk::frame $_optf.f-encoding
         ttk::label $_optf.f-encoding.l -text "Character Encoding"
         ttk::combobox $_optf.f-encoding.cb -textvariable [myvar options(-encoding)] -values [lsort [encoding names]] -state readonly
         bind $_optf.f-encoding.cb <<ComboboxSelected>> [mymethod Redisplay]
         pack $_optf.f-encoding.l $_optf.f-encoding.cb -side left -fill both -expand n
+        # Data processing objects
         foreach {opt text} {
             -headerpresent {First line contains a header}
             -doublequote {Quotes are represented by doubling}
@@ -339,25 +363,32 @@ snit::widget tclcsv::dialectpicker {
         set escapef [$self MakeCharPickerFrame -escape "Escape character" \
                           [list None "" "Backslash (\\)" "\\"]]
 
+        # Start laying out the widgets
+
+        # Options
         grid $_optf.f-encoding - -sticky ew
         grid $_optf.cb-headerpresent $_optf.cb-skipblanklines -sticky ew
         grid $_optf.cb-doublequote $_optf.cb-skipleadingspace -sticky ew
         grid columnconfigure $_optf all -weight 1 -uniform width
         
         pack $_optf -fill none -expand n -pady 4 -anchor w
-        
+
+        # Special characters
         grid $delimiterf $commentf $quotef $escapef -padx 2 -pady 2 -sticky news
         grid columnconfigure $_charf all -uniform width -weight 1
         pack $_charf -fill none -expand n -pady 4 -anchor w
 
+        # Sample data frame
         pack [ttk::separator $win.sep] -fill x -expand n -pady 4
         pack $_dataf -fill both -expand y -anchor nw
 
         $self configurelist $args
+
         $self Redisplay
     }
 
     destructor {
+        # Restore channel to its initial state if it is still open
         if {[info exists _channel(name)] &&
             $_channel(name) in [chan names]} {
             chan configure $_channel(name) -encoding $_channel(original_encoding)
@@ -365,6 +396,7 @@ snit::widget tclcsv::dialectpicker {
         }
     }
     
+    # -columntypes option handler
     method SetOptColumnTypes {opt val} {
         # Make sure the types returned by sniff_header are included
         if {![dict exists $val string]} {
@@ -394,7 +426,8 @@ snit::widget tclcsv::dialectpicker {
             set _column_type_display_to_token([dict get $options(-columntypes) $tok display]) $tok
         }
     }
-    
+
+    # -encoding handler
     method SetOptEncoding {opt val} {
         if {$val ni [encoding names]} {
             error "Unknown encoding \"$val\"."
@@ -402,7 +435,8 @@ snit::widget tclcsv::dialectpicker {
         set options($opt) $val
         $_optf.cb-encoding set $options(-encoding)
     }
-    
+
+    # -delimiter handler. Unlike other special characters this cannot be ""
     method SetOptDelimiter {opt val} {
         if {[string length $val] != 1} {
             error "Invalid value for option $opt. Must be a single character."
@@ -415,6 +449,7 @@ snit::widget tclcsv::dialectpicker {
         }
     }
     
+    # Handler for special character related option.
     method SetOptCharPicker {opt val} {
         if {[string length $val] > 1} {
             error "Invalid value for option $opt. Must be a single character or the empty string."
@@ -572,6 +607,7 @@ snit::widget tclcsv::dialectpicker {
         return
     }
 
+    # Handler when user clicks on the include column checkboxes
     method IncludeColumn {ci} {
         set f [tclcsv::sframe content $_dataf]
         set ri $_data_grid_first_data_row
@@ -590,6 +626,7 @@ snit::widget tclcsv::dialectpicker {
         return
     }
        
+    # Handler for changing a column's type. Changes the sample alignment
     method ChangeColumnType {ci} {
         set f [tclcsv::sframe content $_dataf]
         set ri $_data_grid_first_data_row
@@ -620,11 +657,16 @@ snit::widget tclcsv::dialectpicker {
 
     # Returns the alignment for a column (left or right)
     method ColumnAlignment {ci} {
-        set display $_column_type_display_strings($ci)
-        set coltype $_column_type_display_to_token($display)
-        return [dict get $options(-columntypes) $coltype align]
+        if {[info exists _column_type_display_strings($ci)]} {
+            set display $_column_type_display_strings($ci)
+            set coltype $_column_type_display_to_token($display)
+            return [dict get $options(-columntypes) $coltype align]
+        }
+        return "left"
     }
     
+    # Save the channel settings and initialize it. Sniffs likely
+    # CSV format
     method ChanInit {chan} {
         set _channel(original_encoding) [chan configure $chan -encoding]
         set _channel(original_position)  [chan tell $chan]
@@ -645,6 +687,8 @@ snit::widget tclcsv::dialectpicker {
         return
     }
 
+    # Parse CSV from the channel based on the current option settings.
+    # Sets up the header and type by sniffing the channel
     method ChanRead {} {
         set opts [$self CollectCsvOptions]
         if {[dict get $opts -delimiter] eq ""} {
@@ -703,12 +747,16 @@ snit::widget tclcsv::dialectpicker {
         return $opts
     }
     
+    # Returns the current setting of -encoding
     method encoding {} {
         # Not part of dialectsettings because that can be passed directly
         # to csv_read
         return $options(-encoding)
     }
     
+    # Returns the settings related to the CSV dialect and fields to be
+    # included. Can be passed
+    # to cvs_read
     method dialectsettings {} {
         set opts [$self CollectCsvOptions]
         if {[dict get $opts -delimiter] eq ""} {
@@ -734,6 +782,7 @@ snit::widget tclcsv::dialectpicker {
         return $opts
     }
 
+    # Returns the current settings related to column types and names
     method columnsettings {} {
         if {[dict size $options(-columntypes)] == 0} {
             error "Option -columntypes was not specified."
@@ -759,47 +808,3 @@ snit::widget tclcsv::dialectpicker {
     }
 }
 
-proc tclcsv::testdialectpicker {args} {
-    package require tcl::chan::string
-    package require widget::dialog
-    
-    set data {
-Player,# Superbowls Won,Age,Total Dollars,Average,Guaranteed
-Jay Cutler,0,32,126700000,18100000.00,0.43
-Joe Flacco,1,30,120600000,20100000.00,0.24
-Colin Kaepernick,0,28,114000000,19000000.00,0.54
-Aaron Rodgers,1,32,110000000,22000000.00,0.49
-Tony Romo,0,35,108000000,18000000.00,0.51
-Cam Newton,0,26,103800000,20760000.00,0.58
-Matt Ryan,0,30,103750000,20750000.00,0.40
-Drew Brees,1,36,100000000,20000000.00,0.40
-Andy Dalton,0,28,96000000,16000000.00,0.18
-Russell Wilson,1,27,87600000,21900000.00,0.70
-Ben Roethlisberger,2,33,87400000,21850000.00,0.35
-Eli Manning,2,34,84000000,21000000.00,0.77
-Philip Rivers,0,34,83250000,20812500.00,0.78
-Sam Bradford,0,28,78045000,13007500.00,0.64
-Ryan Tannehill,0,27,77000000,19250000.00,0.58
-Alex Smith,0,31,68000000,17000000.00,0.66
-Matthew Stafford,0,27,53000000,17666667.00,0.78
-Carson Palmer,0,35,49500000,16500000.00,0.41
-Peyton Manning,1,39,34000000,17000000.00,0.44
-Tom Brady,4,38,27000000,9000000.00,0.00
-    }
-    set fd [tcl::chan::string $data]
-    destroy .dlg
-    widget::dialog .dlg -type okcancel
-    dialectpicker .dlg.pick $fd {*}$args
-    .dlg setwidget .dlg.pick
-    set response [.dlg display]
-    if {$response eq "ok"} {
-        puts "encoding: [.dlg.pick encoding]"
-        puts "dialect: [.dlg.pick dialectsettings]"
-        if {[dict exists $args -columntypes] &&
-            [dict size [dict get $args -columntypes]]} {
-            puts "columns: [.dlg.pick columnsettings]"
-        }
-    }
-    close $fd
-    destroy .dlg
-}
