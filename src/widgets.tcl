@@ -237,8 +237,16 @@ proc tclcsv::fit_text {win str font pixels alignment snipStr} {
     }
 }
 
-proc tclcsv::truncated_label {win text {align left} {font TkDefaultFont}} {
+#
+# And finally, my own code
+
+# format text in a label, truncating and adding ellipsis as necessary.
+# Also show "" as <empty> for better visual display
+proc tclcsv::format_label {win text {align left} {font TkDefaultFont}} {
     # Window has not been mapped yet. 
+    if {$text eq ""} {
+        set text <empty>
+    }
     set nchars [string length $text]
     if {$nchars > 10} {
         set nchars 10
@@ -247,9 +255,6 @@ proc tclcsv::truncated_label {win text {align left} {font TkDefaultFont}} {
     }
     $win configure -text $text
 }
-
-#
-# And finally, my own code
 
 # A megawidget to permit various options for parsing CSV to be configured
 snit::widget tclcsv::dialectpicker {
@@ -536,13 +541,19 @@ snit::widget tclcsv::dialectpicker {
             
         set rows [$self ChanRead]
         set nrows [llength $rows]
-        set ncols [llength [lindex $rows 0]]
+        # Find the max number of columns
+        set ncols 0
+        foreach row $rows {
+            if {[llength $row] > $ncols} {
+                set ncols [llength $row]
+            }
+        }
         set f [tclcsv::sframe content $_dataf]
         destroy {*}[winfo children $f]
         array unset _included_columns *
         
         if {$nrows == 0 || $ncols == 0} {
-            grid [ttk::label $_dataf.l-nodata -text "No data to display"] -sticky nw
+            grid [ttk::label $f.l-nodata -text "No data to display"] -sticky nw
             return
         }
 
@@ -590,7 +601,7 @@ snit::widget tclcsv::dialectpicker {
         if {$options(-headerpresent)} {
             for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
                 set l [ttk::label $f.l-$grid_row-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
-                tclcsv::truncated_label $l [lindex $rows $i $j]
+                tclcsv::format_label $l [lindex $rows $i $j]
                 grid $l -row $grid_row -column $grid_col -sticky ew -padx 1
             }
             incr i
@@ -605,7 +616,7 @@ snit::widget tclcsv::dialectpicker {
                     set anchor w
                 }
                 set l [ttk::label $f.l-$grid_row-$j -background white -anchor $anchor]
-                tclcsv::truncated_label $l [lindex $rows $i $j]
+                tclcsv::format_label $l [lindex $rows $i $j]
                 grid $l -row $grid_row -column $grid_col -sticky ew -padx 1
             }
         }
@@ -733,7 +744,6 @@ snit::widget tclcsv::dialectpicker {
                 }
             }
         }
-        
         set rows [tclcsv::csv_read {*}$opts $_channel(name)]
         chan seek $_channel(name) $_channel(original_position)
         set _num_data_lines [llength $rows]

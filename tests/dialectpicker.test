@@ -6,9 +6,10 @@ proc testdialectpicker {args} {
 Player,# Superbowls Won,Age,Total Dollars,Average,Guaranteed
 Jay Cutler,0,32,126700000,18100000.00,0.43
 Joe Flacco,1,30,120600000,20100000.00,0.24
+
 Colin Kaepernick,0,28,114000000,19000000.00,0.54
-Aaron Rodgers,1,32,110000000,22000000.00,0.49
-Tony Romo,0,35,108000000,18000000.00,0.51
+Aaron Rodgers,1,32,110000000,22000000.00
+Tony Romo,0,35,108000000,18000000.00,0.51, extrafield
 Cam Newton,0,26,103800000,20760000.00,0.58
 Matt Ryan,0,30,103750000,20750000.00,0.40
 Drew Brees,1,36,100000000,20000000.00,0.40
@@ -26,7 +27,7 @@ Peyton Manning,1,39,34000000,17000000.00,0.44
 Tom Brady,4,38,27000000,9000000.00,0.00
     }
     set fd [tcl::chan::string $data]
-    destroy .dlg
+    catch {destroy .dlg}
     widget::dialog .dlg -type okcancel
     tclcsv::dialectpicker .dlg.pick {*}$args $fd
     .dlg setwidget .dlg.pick

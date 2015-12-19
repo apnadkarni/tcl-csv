@@ -1,6 +1,5 @@
 text {
-    ((= chap_tclcsv_ref "The tclcsv extension"))
-    :toc: 
+    :toc: left
     :toclevels: 5
     :toc-title: Content
     :icons:  font
@@ -10,7 +9,11 @@ text {
     :linkcss:
     :imagesdir: ./images
     
+    ((= chap_tclcsv_ref "The tclcsv extension"))
+    Version {tclcsvversion}
+
     ((author "Ashok P. Nadkarni"))
+     
 }
 
 

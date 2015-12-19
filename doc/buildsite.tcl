@@ -1,3 +1,4 @@
+set tclcsvversion [source ../src/version.tcl]
 set target output
 set adocgen_files {
     tclcsv
@@ -9,7 +10,7 @@ file delete -force [file join $target images]
 file copy images [file join $target images]
 puts [exec [info nameofexecutable] c:/src/tcl-on-windows/tools/adocgen.tcl -outdir $target -maketoc toc.ad -unsafe -overwrite -author "Ashok P. Nadkarni" {*}$argv {*}[lmap fn $adocgen_files {append fn .adocgen}] 2>@1]
 cd $target
-puts [exec asciidoctor {*}[lmap fn $adocgen_files {append fn .ad}]]
+puts [exec asciidoctor -a tclcsvversion=$tclcsvversion {*}[lmap fn $adocgen_files {append fn .ad}]]
 
 if {0} {
     # Insert Google tags into output html files
