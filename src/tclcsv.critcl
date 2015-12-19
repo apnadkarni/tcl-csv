@@ -23,7 +23,7 @@ critcl::ccode {
     #include "csv.h"
 }
 
-critcl::tsources csv.tcl widgets.tcl
+critcl::tsources csv.tcl widgets.tcl version.tcl
 critcl::csources csv.c
 critcl::cheaders csv.h khash.h
 
