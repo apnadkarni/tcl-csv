@@ -316,7 +316,13 @@ snit::widget tclcsv::dialectpicker {
     variable _data_grid_first_data_row; # First row that contains actual values
     variable _data_grid_first_data_col; # First col that contains actual values
     
-    constructor {chan args} {
+    constructor {args} {
+        if {[llength $args] == 0} {
+            error "wrong # args: should be \"dialectpicker ?options? channel\""
+        }
+        set chan [lindex $args end]
+        set args [lrange $args 0 end-1]
+        
         $hull configure -borderwidth 0
 
         array set _included_columns {}
@@ -757,7 +763,7 @@ snit::widget tclcsv::dialectpicker {
     # Returns the settings related to the CSV dialect and fields to be
     # included. Can be passed
     # to cvs_read
-    method dialectsettings {} {
+    method dialect {} {
         set opts [$self CollectCsvOptions]
         if {[dict get $opts -delimiter] eq ""} {
             dict unset opts -delimiter

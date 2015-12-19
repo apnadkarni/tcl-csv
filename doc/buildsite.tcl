@@ -5,6 +5,8 @@ set adocgen_files {
 
 # file delete -force $target
 file mkdir $target
+file delete -force [file join $target images]
+file copy images [file join $target images]
 puts [exec [info nameofexecutable] c:/src/tcl-on-windows/tools/adocgen.tcl -outdir $target -maketoc toc.ad -unsafe -overwrite -author "Ashok P. Nadkarni" {*}$argv {*}[lmap fn $adocgen_files {append fn .adocgen}] 2>@1]
 cd $target
 puts [exec asciidoctor {*}[lmap fn $adocgen_files {append fn .ad}]]

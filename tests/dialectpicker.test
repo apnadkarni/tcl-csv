@@ -28,12 +28,12 @@ Tom Brady,4,38,27000000,9000000.00,0.00
     set fd [tcl::chan::string $data]
     destroy .dlg
     widget::dialog .dlg -type okcancel
-    dialectpicker .dlg.pick $fd {*}$args
+    tclcsv::dialectpicker .dlg.pick {*}$args $fd
     .dlg setwidget .dlg.pick
     set response [.dlg display]
     if {$response eq "ok"} {
         puts "encoding: [.dlg.pick encoding]"
-        puts "dialect: [.dlg.pick dialectsettings]"
+        puts "dialect: [.dlg.pick dialect]"
         if {[dict exists $args -columntypes] &&
             [dict size [dict get $args -columntypes]]} {
             puts "columns: [.dlg.pick columnsettings]"

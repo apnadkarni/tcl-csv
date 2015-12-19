@@ -8,6 +8,7 @@ text {
     :sectlinks:
     :experimental:
     :linkcss:
+    :imagesdir: ./images
     
     ((author "Ashok P. Nadkarni"))
 }
@@ -108,12 +109,23 @@ text {
     * The ((^ tclcsv_sniff_header sniff_header))
     command uses heuristics to determine the types of the columns
     in the CSV data and whether the data is prefixed with a header line.
+
+    ==== Interactive dialect configuration
+    
+    As an aid for both the programmer as well as the end-user to
+    correctly select the various options for a dialect when the exact
+    dialect for a file is not known, the package
+    also provides the ((^ tclcsv_dialectpicker dialectpicker))
+    Tk widget.
+    The widget allows the user to set various parameters, such as file
+    encoding, delimiter etc. simultaneously previewing the first few
+    lines. These settings can be programmatically retrieved and
+    passed to one of the CSV read commands to correctly parse the data.
 }
 
 
 text {
     == Command reference
-
     
     All commands are located in the `tclcsv` namespace.
 
@@ -387,6 +399,137 @@ text {
     Note that when a header is present, you can use the `-skiplines` option
     to ((^ tclcsv_csv_read csv_read)) to skip the header.
 }
+
+text {
+    == Widget reference
+
+    The package provides a single widget, `dialectpicker`, for configuring
+    the dialect settings used to parse CSV data.
+
+    === Widgets
+
+    ((cmddef tclcsv_dialectpicker "dialectpicker ?_OPTIONS_? _CHANNEL_"))
+
+    The `dialectpicker` widget allows interactive configuration of
+    the dialect settings for parsing CSV data from the specified
+    channel. The widget
+    presents controls for the various settings and permits the user
+    to modify them and inspect the results of parsing the CSV data
+    from the channel using the configured settings.
+
+    _CHANNEL_ should be the name of the channel from which the CSV
+    data is to be read. The configuration, including the seek
+    position and encoding,
+    of the channel is restored to its original when the widget
+    is destroyed.
+
+    In addition to Tk, the widget requires the `snit` package,
+    available as part of
+    http://core.tcl.tk/tcllib/doc/trunk/embedded/index.html[tcllib],
+    to be installed.
+
+    An example invocation is shown below.
+
+    .The `dialectpicker` widget
+    image::dialectpicker.png[]
+
+    The top half of the widget contains the various settings related
+    to parsing of CSV. The bottom half displays a preview table which is
+    updated as these settings are modified by the user.
+
+    On creation, the widget sets the initial values by
+    ((^ tclcsv_sniff sniffing)) the channel. These can be overridden
+    by specifying options to `dialectpicker` when the
+    widget is created. These options are
+
+    ((.Table tab_tclcsv_dialectpicker_opts "dialectpicker options"))
+    [cols="20,80"]
+    |===
+    
+    |`-comment _CHAR_`
+    |See ((^ tab_tclcsv_fmtopts)).
+
+    |`-delimiter _CHAR_`
+    |See ((^ tab_tclcsv_fmtopts)).
+
+    |`-doublequote _CHAR_`
+    |See ((^ tab_tclcsv_fmtopts)).
+
+    |`-encoding _ENCODING_`
+    |Specifies the character encoding to be used for the channel.
+    _ENCODING_ must be one of the names returned by the Tcl
+    `encoding names` command.
+    
+    |`-escape _CHAR_`
+    |See ((^ tab_tclcsv_fmtopts)).
+
+    |`-headerpresent _BOOLEAN_`
+    |Indicates whether the CSV data is expected
+    to have a header line. If unspecified, the widget will use
+    heuristics to set the initial value.
+
+    |`-quote _CHAR_`
+    |See ((^ tab_tclcsv_fmtopts)).
+
+    |`-skipleadingspace _CHAR_`
+    |See ((^ tab_tclcsv_fmtopts)).
+
+    |`-skipblanklines _CHAR_`
+    |See ((^ tab_tclcsv_fmtopts)).
+
+    |===
+    
+    
+    The current settings for the widget can be retrieved through
+    two method calls `encoding` and `dialect`.
+
+    ((cmddef tclcsv_dialectpicker_encoding "_WIDGET_ encoding" 1))
+
+    Returns the character encoding name currently selected in the
+    widget.
+    
+    ((cmddef tclcsv_dialectpicker_dialect "_WIDGET_ dialect" 1))
+
+    Returns a dictionary of CSV dialect options with values as
+    set in the widget. The dictionary contains all the options
+    shown in ((^ tab_tclcsv_dialectpicker_opts)). If the user
+    has deselected any of the `Included` checkboxes for any
+    column in the preview pane, the dictionary also includes
+    an `-includedfields` option specifying the subset of fields to be
+    read from the data. If the `Header is present` checkbox is
+    selected, the dictionary includes a `-startline 1` option
+    indicating the first line should be skipped when reading data.
+    
+    The return value can directly be passed to
+    the ((^ tclcsv_csv_read csv_read)) and ((^ tclcsv_reader reader))
+    commands as options. 
+
+    ==== Sample use
+
+    The following code uses the `widget::dialog` dialog widget from
+    the http://tcl.activestate.com/software/tklib/[tklib] package
+    to read CSV data using user-selected settings.
+    
+} uiscript {
+    package require tclcsv
+    package require widget::dialog
+    set fd [open qb.csv]
+    widget::dialog .dlg -type okcancel
+    tclcsv::dialectpicker .dlg.csv $fd
+    .dlg setwidget .dlg.csv
+    set response [.dlg display]; # User response will "ok" or "cancel"
+    if {$response eq "ok"} {
+        set encoding [.dlg.csv encoding]
+        chan configure $fd -encoding $encoding; # Note we have to explicitly set encoding prior to calling csv_read
+        set opts [.dlg.csv dialect]
+        set rows [tclcsv::csv_read {*}$opts $fd]
+    }
+    close $fd
+    destroy .dlg
+} 
+
+
+
 
 text {
     == Source code
