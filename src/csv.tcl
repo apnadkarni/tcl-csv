@@ -10,48 +10,6 @@ namespace eval tclcsv {
     set script_dir [file dirname [info script]]
 }
 
-proc tclcsv::_sniff2 {chan delimiters} {
-    set seek_pos [chan tell $chan]
-    if {$seek_pos == -1} {
-        error "Channel is not seekable"
-    }
-
-    # TBD - what if delimiters or quotes is empty?
-    # TBD - what if no rows ?
-    
-    set escapes [list \\ ""]
-    set quotes [list \" ']
-    set combinations {}
-    foreach delimiter $delimiters {
-        foreach quote $quotes {
-            foreach doublequote {0 1} {
-                foreach escape $escapes {
-                    unset -nocomplain width_frequencies
-                    try {
-                        set nrows 0
-                        foreach row [csv_read -nrows 100 -delimiter $delimiter -quote $quote -doublequote $doublequote -escape $escape $chan] {
-                            set n [llength $row]
-                            if {$n == 0} {
-                                # Ignore empty lines
-                            }
-                            incr width_frequencies($n)
-                            incr nrows
-                        }
-                    } finally {
-                        chan seek $chan $seek_pos
-                    }
-                    if {![info exists width_frequencies]} continue
-                    set sorted_frequencies [lsort -stride 2 -decreasing -integer -index 1 [array get width_frequencies]]
-                    set mode [lindex $sorted_frequencies 0]
-                    set mode_frac [expr {[lindex $sorted_frequencies 1] / double($nrows)}]
-                    lappend combinations [list [list -delimiter $delimiter -quote $quote -doublequote $doublequote -escape $escape] $mode $mode_frac]
-                }
-            }
-        }
-    }
-    return $combinations
-}
-
 # Like _sniff above but only considers delimiters
 proc tclcsv::_sniff {chan delimiters} {
     set seek_pos [chan tell $chan]
