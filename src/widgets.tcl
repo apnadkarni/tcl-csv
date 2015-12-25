@@ -594,8 +594,8 @@ snit::widget tclcsv::dialectpicker {
             set _data_grid_first_data_row 4
             set _data_grid_first_data_col 1
             grid [ttk::label $f.l-colname -text [mc heading_l]] -sticky ew -padx 1 -row 1 -column 0
-            grid [ttk::label $f.l-coltype -text [mc type_l]] -sticky ew -padx 1 -row 3 -column 0
-            grid [ttk::separator $f.sep-0 -orient horizontal] -sticky ew -padx 1 -row 4 -column 0 -pady 4
+            grid [ttk::label $f.l-coltype -text [mc type_l]] -sticky ew -padx 1 -row 2 -column 0
+            grid [ttk::separator $f.sep-0 -orient horizontal] -sticky ew -padx 1 -row 3 -column 0 -pady 4
         } else {
             set _data_grid_first_data_row 2
             set _data_grid_first_data_col 0
@@ -631,7 +631,16 @@ snit::widget tclcsv::dialectpicker {
         if {$options(-headerpresent)} {
             # If we are displaying the column metadata, the header
             # (or its substitute) is displayed there so won't display it here.
-            if {[dict size $options(-columntypes)] == 0} {
+            # Instead fill in the column meta header entries if they are
+            # not defined or are empty.
+            if {[dict size $options(-columntypes)]} {
+                for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
+                    if {![info exists _column_headings($j)] ||
+                        $_column_headings($j) eq ""} {
+                        set _column_headings($j) [lindex $rows $i $j]
+                    }
+                }
+            } else {
                 for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
                     set l [ttk::label $f.l-$grid_row-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
                     tclcsv::format_label $l [lindex $rows $i $j]
