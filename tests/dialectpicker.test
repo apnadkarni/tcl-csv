@@ -35,8 +35,7 @@ Tom Brady,4,38,27000000,9000000.00,0.00
     if {$response eq "ok"} {
         puts "encoding: [.dlg.pick encoding]"
         puts "dialect: [.dlg.pick dialect]"
-        if {[dict exists $args -columntypes] &&
-            [dict size [dict get $args -columntypes]]} {
+        if {[dict exists $args -columntypes]} {
             puts "columns: [.dlg.pick columnsettings]"
         }
     }

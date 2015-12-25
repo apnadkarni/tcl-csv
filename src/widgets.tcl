@@ -48,8 +48,8 @@ namespace eval tclcsv {
         other_l        Other
         
         include_l      Include
-
-        
+        heading_l      Heading
+        type_l         Type
     }
 }
 
@@ -331,13 +331,11 @@ snit::widget tclcsv::dialectpicker {
     # Stores display strings of column types. Array indexed by col number
     variable _column_type_display_strings
     
-    # Stores information whether a column is included or not,
-    # column titles and names. Only used if caller specified the
-    # -columntypes option
+    # Stores information whether a column is included or not and column heading,
+    # Only used if caller specified the -columntypes option
     # Arrays indexed by column number
     variable _included_columns
-    variable _column_names
-    variable _column_titles
+    variable _column_headings
     
     # Store state information about the channel we are reading from
     # name - channel name
@@ -587,11 +585,10 @@ snit::widget tclcsv::dialectpicker {
         }
 
         if {[dict size $options(-columntypes)]} {
-            set _data_grid_first_data_row 5
+            set _data_grid_first_data_row 4
             set _data_grid_first_data_col 1
-            grid [ttk::label $f.l-colname -text "Name:"] -sticky ew -padx 1 -row 1 -column 0
-            grid [ttk::label $f.l-title -text "Title:"] -sticky ew -padx 1 -row 2 -column 0
-            grid [ttk::label $f.l-coltype -text "Type:"] -sticky ew -padx 1 -row 3 -column 0
+            grid [ttk::label $f.l-colname -text [mc heading_l]] -sticky ew -padx 1 -row 1 -column 0
+            grid [ttk::label $f.l-coltype -text [mc type_l]] -sticky ew -padx 1 -row 3 -column 0
             grid [ttk::separator $f.sep-0 -orient horizontal] -sticky ew -padx 1 -row 4 -column 0 -pady 4
         } else {
             set _data_grid_first_data_row 2
@@ -606,16 +603,14 @@ snit::widget tclcsv::dialectpicker {
             grid $cb -sticky ew -padx 1 -row 0 -column $grid_col
 
             if {[dict size $options(-columntypes)]} {
-                # Entry boxes for name and title of column
-                set e [ttk::entry $f.e-name-$j -textvariable [myvar _column_names($j)]]
+                # Entry boxes for column heading
+                set e [ttk::entry $f.e-heading-$j -textvariable [myvar _column_headings($j)]]
                 grid $e -sticky ew -padx 1 -row 1 -column $grid_col
-                set e [ttk::entry $f.e-title-$j -textvariable [myvar _column_titles($j)]]
-                grid $e -sticky ew -padx 1 -row 2 -column $grid_col
                 
                 # Widget for specifying type of the column (for alignment)
                 set combo [ttk::combobox $f.cb-type-$j -width 8 -textvariable [myvar _column_type_display_strings($j)] -values $type_display_strings -state readonly]
                 bind $combo <<ComboboxSelected>> [mymethod ChangeColumnType $j]
-                grid $combo -sticky ew -padx 1 -row 3 -column $grid_col
+                grid $combo -sticky ew -padx 1 -row 2 -column $grid_col
                 
             }
             # Separate the meta fields from data
@@ -657,11 +652,27 @@ snit::widget tclcsv::dialectpicker {
         return
     }
 
+    method DataGridRowIndexStart {} {
+        return $_data_grid_first_data_row
+    }
+
+    method DataGridRowIndexLimit {} {
+        # The last data grid row depends on whether a header is marked
+        # present and if it is displayed as part of column metadata
+        # in the "Heading" line
+        set first [$self DataGridRowIndexStart]
+        set limit [expr {$first + $_num_data_lines}]
+        if {[dict size $options(-columntypes)] && $options(-headerpresent)} {
+            incr limit -1
+        }
+        return $limit
+    }
+    
     # Handler when user clicks on the include column checkboxes
     method IncludeColumn {ci} {
         set f [tclcsv::sframe content $_dataf]
-        set ri $_data_grid_first_data_row
-        set limit [expr {$ri + $_num_data_lines}]
+        set ri [$self DataGridRowIndexStart]
+        set limit [$self DataGridRowIndexLimit]
         if {$_included_columns($ci)} {
             while {$ri < $limit} {
                 $f.l-$ri-$ci configure -state enabled
@@ -679,8 +690,8 @@ snit::widget tclcsv::dialectpicker {
     # Handler for changing a column's type. Changes the sample alignment
     method ChangeColumnType {ci} {
         set f [tclcsv::sframe content $_dataf]
-        set ri $_data_grid_first_data_row
-        set limit [expr {$ri + $_num_data_lines}]
+        set ri [$self DataGridRowIndexStart]
+        set limit [$self DataGridRowIndexLimit]
         if {[$self ColumnAlignment $ci] eq "right"} {
             set anchor e
         } else {
@@ -765,14 +776,12 @@ snit::widget tclcsv::dialectpicker {
                 }
             }
             if {[llength $headers] > 1} {
-                set titles [lindex $headers 1]
-                if {![info exists _column_titles] ||
-                    [array size _column_titles] != [llength $titles]} {
-                    array unset _column_titles *
-                    for {set i 0} {$i < [llength $titles]} {incr i} {
-                        set title [lindex $titles $i]
-                        set _column_titles($i) $title
-                        set _column_names($i) [regsub -all {[^[:alnum:]_]} $title _]
+                set headings [lindex $headers 1]
+                if {![info exists _column_headings] ||
+                    [array size _column_headings] != [llength $headings]} {
+                    array unset _column_headings *
+                    for {set i 0} {$i < [llength $headings]} {incr i} {
+                        set _column_headings($i) [lindex $headings $i]
                     }
                 }
             }
@@ -836,22 +845,28 @@ snit::widget tclcsv::dialectpicker {
         if {[dict size $options(-columntypes)] == 0} {
             error "Option -columntypes was not specified."
         }
-        set ncols [array size _column_names]
+        set ncols [array size _included_columns]
         set header {}
         for {set i 0} {$i < $ncols} {incr i} {
-            if {[info exists _column_names($i)] && $_column_names($i) ne ""} {
-                set name $_column_names($i)
-            } else {
-                set name "Column_$i"
+            # Note some rows may have extra fields so always check if
+            # corresponding array entry actually exists
+            
+            if {![info exists _included_columns($i)] ||
+                !$_included_columns($i)} {
+                continue;       # Skip this columns
             }
-            if {[info exists _column_titles($i)] && $_column_titles($i) ne ""} {
-                set title $_column_titles($i)
+            if {[info exists _column_headings($i)] && $_column_headings($i) ne ""} {
+                set heading $_column_headings($i)
             } else {
-                set title $name
+                set heading "Column_$i"
             }
-            set display $_column_type_display_strings($i)
-            set type $_column_type_display_to_token($display)
-            lappend header [list name $name title $title type $type]
+            if {[info exists _column_type_display_strings($i)]} {
+                set display $_column_type_display_strings($i)
+                set type $_column_type_display_to_token($display)
+            } else {
+                set type "string"
+            }
+            lappend header [list heading $heading type $type]
         }
         return $header
     }
