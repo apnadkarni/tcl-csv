@@ -411,11 +411,11 @@ text {
 
     === Widgets
 
-    ((cmddef tclcsv_dialectpicker "dialectpicker _WIDGET_ ?_OPTIONS_? _CHANNEL_"))
+    ((cmddef tclcsv_dialectpicker "dialectpicker _WIDGET_ ?_OPTIONS_? _DATASOURCE_"))
 
     The `dialectpicker` widget allows interactive configuration of
     the dialect settings for parsing CSV data from the specified
-    channel. The widget
+    file or channel. The widget
     presents controls for the various settings and permits the user
     to modify them and inspect the results of parsing the CSV data
     from the channel using the configured settings.
@@ -423,8 +423,10 @@ text {
     _WIDGET_ should be the Tk window path for the widget. This is also
     the return value of the command.
     
-    _CHANNEL_ should be the name of the channel from which the CSV
-    data is to be read. The configuration, including the seek
+    _DATASOURCE_ should be either the path to a file or
+    the name of the channel from which the CSV
+    data is to be read. In the case of a channel,
+    the configuration, including the seek
     position and encoding,
     of the channel is restored to its original when the widget
     is destroyed.

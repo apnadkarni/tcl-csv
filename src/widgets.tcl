@@ -338,6 +338,7 @@ snit::widget tclcsv::dialectpicker {
     variable _column_headings
     
     # Store state information about the channel we are reading from
+    # path - path to file - ONLY PRESENT IF PASSED IN PATH INSTEAD OF CHANNEL
     # name - channel name
     # original_position - original seek position
     # original_encoding - encoding to be restored
@@ -429,8 +430,13 @@ snit::widget tclcsv::dialectpicker {
         # Restore channel to its initial state if it is still open
         if {[info exists _channel(name)] &&
             $_channel(name) in [chan names]} {
-            chan configure $_channel(name) -encoding $_channel(original_encoding)
-            chan seek $_channel(name) $_channel(original_position)
+            if {[info exists _channel(path)]} {
+                # We opened the channel ourselves so close it.
+                close $_channel(name)
+            } else {
+                chan configure $_channel(name) -encoding $_channel(original_encoding)
+                chan seek $_channel(name) $_channel(original_position)
+            }
         }
     }
     
@@ -729,6 +735,13 @@ snit::widget tclcsv::dialectpicker {
     # Save the channel settings and initialize it. Sniffs likely
     # CSV format
     method ChanInit {chan} {
+        # See if we were passed in a channel or a path
+        if {$chan ni [chan names]} {
+            # Not a channel. Presume it is a file.
+            set _channel(path) $chan
+            set chan [open $chan r]
+        }
+        
         set _channel(original_encoding) [chan configure $chan -encoding]
         set _channel(original_position)  [chan tell $chan]
         if {$_channel(original_position) == -1} {
