@@ -345,7 +345,13 @@ proc tclcsv::sniff_header {args} {
 
     set field_types {}
     for {set findex 0} {$findex < $width} {incr findex} {
-        lappend field_types [dict get $types $findex type]
+        set type [dict get $types $findex type]
+        # $type can be unknown if the loop above did a continue right
+        # at the top for every line
+        if {$type eq "unknown"} {
+            set type string
+        }
+        lappend field_types $type
     }
 
     if {$probably_header > 0} {

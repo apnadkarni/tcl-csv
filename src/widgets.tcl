@@ -628,13 +628,17 @@ snit::widget tclcsv::dialectpicker {
         set grid_col $_data_grid_first_data_col
         set i 0
         if {$options(-headerpresent)} {
-            for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
-                set l [ttk::label $f.l-$grid_row-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
-                tclcsv::format_label $l [lindex $rows $i $j]
-                grid $l -row $grid_row -column $grid_col -sticky ew -padx 1
+            # If we are displaying the column metadata, the header
+            # (or its substitute) is displayed there so won't display it here.
+            if {[dict size $options(-columntypes)] == 0} {
+                for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
+                    set l [ttk::label $f.l-$grid_row-$j -font [list {*}[font configure TkDefaultFont] -weight bold]]
+                    tclcsv::format_label $l [lindex $rows $i $j]
+                    grid $l -row $grid_row -column $grid_col -sticky ew -padx 1
+                }
+                incr grid_row
             }
-            incr i
-            incr grid_row
+            incr i; # Skip first line of data
         }
         for {} {$i < $nrows} {incr i; incr grid_row} {
             set grid_col $_data_grid_first_data_col
