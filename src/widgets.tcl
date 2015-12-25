@@ -19,10 +19,39 @@ if {![llength [info commands snit::widget]] ||
     return
 }
     
-# package require Tk
-# package require snit
+package require msgcat
 
-namespace eval tclcsv {}
+namespace eval tclcsv {
+    namespace import ::msgcat::*
+    mcmset "" {
+        encoding_l     "Character encoding"
+
+        header_line_l  "First line contains a header"
+        skip_empty_l   "Skip lines that are empty"
+        quote_doubled_l "Quotes are represented by doubling"
+        ignore_leading_space_l "Ignore leading space in fields"
+        
+        delimiter_char_l Delimiter
+        comment_char_l "Comment character"
+        quote_char_l   "Quote character"
+        escape_char_l  "Escape character"
+        
+        none_l         None
+        space_l        Space
+        tab_l          Tab
+        hash_l         "Hash (#)"
+        semicolon_l    "Semicolon (;)"
+        comma_l        Comma
+        dquote_l       "Double quote (\")"
+        squote_l       "Single quote (')"
+        backslash_l    "Backslash (\)"
+        other_l        Other
+        
+        include_l      Include
+
+        
+    }
+}
 
 namespace eval tclcsv::sframe {
     # sframe.tcl - from http://wiki.tcl.tk/9223
@@ -343,36 +372,36 @@ snit::widget tclcsv::dialectpicker {
         
         # File character encoding
         ttk::frame $_optf.f-encoding
-        ttk::label $_optf.f-encoding.l -text "Character Encoding"
+        ttk::label $_optf.f-encoding.l -text [mc encoding_l]
         ttk::combobox $_optf.f-encoding.cb -textvariable [myvar options(-encoding)] -values [lsort [encoding names]] -state readonly
         bind $_optf.f-encoding.cb <<ComboboxSelected>> [mymethod Redisplay]
         pack $_optf.f-encoding.l $_optf.f-encoding.cb -side left -fill both -expand n
         # Data processing objects
         foreach {opt text} {
-            -headerpresent {First line contains a header}
-            -doublequote {Quotes are represented by doubling}
-            -skipblanklines {Skip lines that are empty}
-            -skipleadingspace {Ignore leading spaces in fields}
+            -headerpresent header_line_l
+            -doublequote quote_doubled_l
+            -skipblanklines skip_empty_l
+            -skipleadingspace ignore_leading_space_l
         } {
-            ttk::checkbutton $_optf.cb$opt -variable [myvar options($opt)] -text $text -command [mymethod Redisplay]
+            ttk::checkbutton $_optf.cb$opt -variable [myvar options($opt)] -text [mc $text] -command [mymethod Redisplay]
         }
 
         # Delimiter selection
-        set delimiterf [$self MakeCharPickerFrame -delimiter Delimiter \
-                            [list Tab \t Space { } Comma , Semicolon ";"] \
+        set delimiterf [$self MakeCharPickerFrame -delimiter delimiter_char_l \
+                            [list tab_l \t space_l { } comma_l , semicolon_l ";"] \
                             \t]
         
         # Comment char
-        set commentf [$self MakeCharPickerFrame -comment "Comment character" \
-                          [list None "" "Hash (#)" "#"]]
+        set commentf [$self MakeCharPickerFrame -comment comment_char_l  \
+                          [list none_l "" hash_l "#"]]
 
         # Quote char
-        set quotef [$self MakeCharPickerFrame -quote "Quote character" \
-                          [list None "" "Double quote (\")" "\"" "Single quote (')" "'"] \"]
+        set quotef [$self MakeCharPickerFrame -quote quote_char_l \
+                          [list none_l "" dquote_l "\"" squote_l "'"] \"]
 
         # Escape char
-        set escapef [$self MakeCharPickerFrame -escape "Escape character" \
-                          [list None "" "Backslash (\\)" "\\"]]
+        set escapef [$self MakeCharPickerFrame -escape escape_char_l \
+                          [list none_l "" backslash_l "\\"]]
 
         # Start laying out the widgets
 
@@ -517,10 +546,10 @@ snit::widget tclcsv::dialectpicker {
     # Make a labelled frame containing the radiobuttons for selecting
     # characters used for special purposes.
     method MakeCharPickerFrame {opt title rblist {default_rb_value {}}} {
-        set f [ttk::labelframe $_charf.f$opt -text $title]
+        set f [ttk::labelframe $_charf.f$opt -text [mc $title]]
         set rbi -1
         foreach {label value} $rblist {
-            set w [ttk::radiobutton $f.rb[incr rbi] -text $label -value $value -variable [myvar options($opt)] -command [mymethod Redisplay]]
+            set w [ttk::radiobutton $f.rb[incr rbi] -text [mc $label] -value $value -variable [myvar options($opt)] -command [mymethod Redisplay]]
             grid $w - -sticky ew
         }
         set w [ttk::radiobutton $f.rb-other -text Other -value "other" -variable [myvar options($opt)] -command [mymethod Redisplay]]
@@ -573,7 +602,7 @@ snit::widget tclcsv::dialectpicker {
         for {set j 0} {$j < $ncols} {incr j; incr grid_col} {
             # Widget for whether to include the column when reading data
             set _included_columns($j) 1
-            set cb [ttk::checkbutton $f.cb-colinc-$j -text Include -variable [myvar _included_columns($j)] -command [mymethod IncludeColumn $j]]
+            set cb [ttk::checkbutton $f.cb-colinc-$j -text [mc include_l] -variable [myvar _included_columns($j)] -command [mymethod IncludeColumn $j]]
             grid $cb -sticky ew -padx 1 -row 0 -column $grid_col
 
             if {[dict size $options(-columntypes)]} {
