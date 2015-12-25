@@ -827,6 +827,11 @@ snit::widget tclcsv::dialectpicker {
         return $opts
     }
     
+    # Returns the channel
+    method channel {} {
+        return $_channel(name)
+    }
+    
     # Returns the current setting of -encoding
     method encoding {} {
         # Not part of dialectsettings because that can be passed directly
