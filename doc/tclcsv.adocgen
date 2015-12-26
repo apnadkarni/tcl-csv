@@ -442,7 +442,7 @@ text {
     image::dialectpicker.png[]
 
     The top half of the widget contains the various settings related
-    to parsing of CSV. The bottom half displays a preview table which is
+    to parsing of CSV data. The bottom half displays a preview table which is
     updated as these settings are modified by the user.
 
     On creation, the widget sets the initial values by
@@ -512,7 +512,7 @@ text {
     the ((^ tclcsv_csv_read csv_read)) and ((^ tclcsv_reader reader))
     commands as options. 
 
-    ==== Sample use
+    ==== Example
 
     The following code uses the `widget::dialog` dialog widget from
     the http://tcl.activestate.com/software/tklib/[tklib] package
@@ -521,9 +521,8 @@ text {
 } uiscript {
     package require tclcsv
     package require widget::dialog
-    set fd [open qb.csv]
     widget::dialog .dlg -type okcancel
-    tclcsv::dialectpicker .dlg.csv $fd
+    tclcsv::dialectpicker .dlg.csv qb.csv
     .dlg setwidget .dlg.csv
     set response [.dlg display]; # User response will "ok" or "cancel"
     if {$response eq "ok"} {
@@ -532,7 +531,6 @@ text {
         set opts [.dlg.csv dialect]
         set rows [tclcsv::csv_read {*}$opts $fd]
     }
-    close $fd
     destroy .dlg
 } 
 
