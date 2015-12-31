@@ -30,6 +30,8 @@ text {
     a pure Tcl package but conversely has much lower performance which
     is an issue only for larger files. It is also a little less flexible
     in terms of input syntax.
+
+    The extension requires Tcl version 8.6 or later.
 }
 
 text {

@@ -1,5 +1,5 @@
 rmdir/s/q build
-@rem Form the file name basaed on the version we are building
+@rem Form the file name based on the version we are building
 @for /f %%i in ('tclsh src/version.tcl') do set FNAME=tclcsv-%%i
 
 @rem We fire off new shells so as to not change our env
