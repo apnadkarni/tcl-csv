@@ -528,10 +528,12 @@ text {
     .dlg setwidget .dlg.csv
     set response [.dlg display]; # User response will "ok" or "cancel"
     if {$response eq "ok"} {
+        set fd [open qb.csv]
         set encoding [.dlg.csv encoding]
         chan configure $fd -encoding $encoding; # Note we have to explicitly set encoding prior to calling csv_read
         set opts [.dlg.csv dialect]
         set rows [tclcsv::csv_read {*}$opts $fd]
+        close $fd
     }
     destroy .dlg
 } 
