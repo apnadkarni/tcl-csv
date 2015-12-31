@@ -538,9 +538,6 @@ text {
     destroy .dlg
 } 
 
-
-
-
 text {
     == Source code
 
@@ -573,7 +570,17 @@ text {
 text {
     == Version history
 
+    .Version 2.2
+
+    * Modify `dialectpicker` to accept either a file path or a channel
+
+    * Latent support for the http://tarray.sf.net[tarray] package
+
+    * Latent support for localization
+    
     .Version 2.1
+    
+    * Added `dialectpicker` widget
     
     * Added options `-includefields` and `-excludefields`.
 
