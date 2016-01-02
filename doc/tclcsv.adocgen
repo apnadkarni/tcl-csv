@@ -576,8 +576,6 @@ text {
 
     * Latent support for the http://tarray.sf.net[tarray] package
 
-    * Latent support for localization
-    
     .Version 2.1
     
     * Added `dialectpicker` widget

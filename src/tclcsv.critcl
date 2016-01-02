@@ -26,7 +26,8 @@ critcl::ccode {
 critcl::tsources csv.tcl widgets.tcl version.tcl
 critcl::csources csv.c
 critcl::cheaders csv.h khash.h
-critcl::owns msgs/*.msg
+# critcl TEA install does not copy message files. So for now comment out - TBD
+# critcl::owns msgs/*.msg
 
 critcl::ccommand ::tclcsv::csv_read csv_read_cmd
 
