@@ -1,6 +1,6 @@
 /*
 
-  CSV parsing - Heavily adapted for tarray/Tcl 
+  CSV parsing - Heavily adapted for tclcsv
 
   From:
   Copyright (c) 2012, Lambda Foundry, Inc., except where noted
@@ -10,6 +10,8 @@
    Low-level ascii-file processing from pandas. Combines some elements from
    Python's built-in csv module and Warren Weckesser's textreader project on
    GitHub. See Python Software Foundation License and BSD licenses for these.
+   
+  Modifications for tclcsv (c) 2016 by Ashok P. Nadkarni. See license.terms.
 
 */
 
@@ -54,7 +56,7 @@ void parser_set_default_options(parser_t *self)
 {
     self->included_fields = NULL;
     self->excluded_fields = NULL;
-    
+
     self->delimiter = ','; // XXX
     self->delim_whitespace = 0;
 
@@ -84,7 +86,6 @@ void parser_set_default_options(parser_t *self)
 static int parse_field_indices(Tcl_Obj *o, int *pnindices, char **ppindices)
 {
     char *pindices = NULL;
-    int nindices = 0;
     Tcl_Obj **objs;
     int i, imax, nobjs;
 
@@ -96,7 +97,7 @@ static int parse_field_indices(Tcl_Obj *o, int *pnindices, char **ppindices)
      * the end_field function before including/excluding the element
      */
 
-    if (Tcl_ListObjGetElements(NULL, o, &nobjs, &objs) != TCL_OK) 
+    if (Tcl_ListObjGetElements(NULL, o, &nobjs, &objs) != TCL_OK)
         return TCL_ERROR;
 
     /* If empty list, treat as unspecified */
@@ -105,7 +106,7 @@ static int parse_field_indices(Tcl_Obj *o, int *pnindices, char **ppindices)
         *ppindices = NULL;
         return TCL_OK;
     }
-    
+
     imax = -1;
     for (i = 0; i < nobjs; ++i) {
         int ix;
@@ -164,7 +165,7 @@ static int parser_init(parser_t *self)
     self->file_lines = 0;
 
     self->field_index = 0;
-    
+
     /* read bytes buffered */
     self->dataObj = Tcl_NewObj();
     Tcl_IncrRefCount(self->dataObj);
@@ -178,7 +179,7 @@ static int parser_init(parser_t *self)
     Tcl_IncrRefCount(self->rowObj);
     self->fieldObj = Tcl_NewObj();
     Tcl_IncrRefCount(self->fieldObj);
-    
+
     self->state = START_RECORD;
 
     return 0;
@@ -237,7 +238,7 @@ static int end_line(parser_t *self)
         // increment file line count
         self->file_lines++;
         return 0;
-    } 
+    }
     fields = 0;
     Tcl_ListObjLength(NULL, self->rowObj,  &fields);
     Tcl_ListObjAppendElement(NULL, self->rowsObj, self->rowObj);
@@ -299,7 +300,7 @@ static int end_line(parser_t *self)
             // simply skip bad lines
             if (self->warn_bad_lines) {
                 // pass up error message
-                append_warning(self, 
+                append_warning(self,
                                Tcl_ObjPrintf("Skipping line %d: expected %d fields, saw %d\n",
                                              self->file_lines,
                                              ex_fields,
@@ -348,7 +349,7 @@ static int end_line(parser_t *self)
         self->line_fields[self->lines] = 0;
     }
 #endif // TBD
-    
+
     TRACE(("end_line: Finished line, at %d\n", self->lines));
 
     return 0;
@@ -388,7 +389,7 @@ static int parser_buffer_bytes(parser_t *self, size_t nbytes)
     self->datapos = 0;
     if (self->dataObj == NULL)
         self->dataObj = Tcl_NewObj();
-    
+
     chars_read = Tcl_ReadChars(self->chan, self->dataObj, nbytes, 0);
     if (chars_read > 0) {
         self->data = Tcl_GetStringFromObj(self->dataObj, &self->datalen);
@@ -1484,7 +1485,7 @@ int tokenize_nrows(parser_t *self, size_t nrows)
     return status;
 }
 
-int tokenize_all_rows(parser_t *self) 
+int tokenize_all_rows(parser_t *self)
 {
     int status = _tokenize_helper(self, -1, 1);
     return status;
@@ -1499,8 +1500,8 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
     Tcl_Obj **objs;
     Tcl_Channel chan;
     static const char *switches[] = {
-        "-comment", "-delimiter", "-doublequote", "-escape", 
-        "-excludefields", "-ignoreerrors", "-includefields", 
+        "-comment", "-delimiter", "-doublequote", "-escape",
+        "-excludefields", "-ignoreerrors", "-includefields",
         "-nrows", "-quote", "-quoting",
         "-skipblanklines", "-skipleadingspace", "-skiplines",
         "-startline", "-strict", "-terminator",
@@ -1517,7 +1518,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
         Tcl_SetResult(ip, "Syntax error: CHANNEL argument must be specified.", TCL_STATIC);
 	return NULL;
     }
-        
+
     chan = Tcl_GetChannel(ip, Tcl_GetString(objv[objc-1]), &mode);
     if (chan == NULL)
         return NULL;
@@ -1637,13 +1638,13 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             parser->strict = ival;
             break;
         case CSV_INCLUDEFIELDS:
-            if (parse_field_indices(objv[i+1], 
+            if (parse_field_indices(objv[i+1],
                                     &parser->num_included_fields,
                                     &parser->included_fields) != TCL_OK)
                 goto invalid_option_value;
             break;
         case CSV_EXCLUDEFIELDS:
-            if (parse_field_indices(objv[i+1], 
+            if (parse_field_indices(objv[i+1],
                                     &parser->num_excluded_fields,
                                     &parser->excluded_fields) != TCL_OK)
                 goto invalid_option_value;
@@ -1672,10 +1673,10 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
     parser = parser_create(ip, objc-1, objv+1, &nrows);
     if (parser == NULL)
         return TCL_ERROR;
-    
-    if (nrows >= 0) 
+
+    if (nrows >= 0)
         res = tokenize_nrows(parser, nrows) == 0 ? TCL_OK : TCL_ERROR;
-    else 
+    else
         res = tokenize_all_rows(parser) == 0 ? TCL_OK : TCL_ERROR;
 
     if (res == TCL_OK)
@@ -1686,7 +1687,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
         else
             Tcl_SetResult(ip, "Error parsing CSV", TCL_STATIC);
     }
-    
+
     parser_free(parser);
     return res;
 }

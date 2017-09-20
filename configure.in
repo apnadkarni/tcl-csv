@@ -1,0 +1,48 @@
+# Configure for
+# 	tclcsv 2.2
+#
+# Copyright (c) 2016 Ashok P. Nadkarni
+
+AC_INIT([tclcsv],[2.2.1])
+
+TEA_INIT([3.9])
+
+AC_CONFIG_AUX_DIR(tclconfig)
+
+#--------------------------------------------------------------------
+# Load the tclConfig.sh file
+#--------------------------------------------------------------------
+
+TEA_PATH_TCLCONFIG
+TEA_LOAD_TCLCONFIG
+
+#-----------------------------------------------------------------------
+## Std TEA setup
+
+TEA_PREFIX
+TEA_SETUP_COMPILER
+TEA_PUBLIC_TCL_HEADERS
+TEA_ENABLE_THREADS
+TEA_ENABLE_SHARED
+TEA_CONFIG_CFLAGS
+TEA_ENABLE_SYMBOLS
+TEA_MAKE_LIB
+TEA_PROG_TCLSH
+
+#-----------------------------------------------------------------------
+
+TEA_ADD_SOURCES([
+    src/csv.c
+    src/tclcsv.c
+])
+TEA_ADD_CFLAGS([])
+TEA_ADD_STUB_SOURCES([])
+TEA_ADD_TCL_SOURCES([
+    src/csv.tcl
+    src/widgets.tcl
+    src/version.tcl
+])
+
+AC_DEFINE(USE_TCL_STUBS)
+
+AC_OUTPUT([Makefile pkgIndex.tcl])

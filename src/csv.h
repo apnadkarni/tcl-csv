@@ -134,7 +134,7 @@ typedef struct parser_t {
     int lines;            // Number of (good) lines observed
     int file_lines;       // Number of file lines observed (including bad or skipped)
 
-    /* 
+    /*
      * Caller can specify which fields are to be included / excluded.
      * A field is included if its index appears in included_fields but
      * not in excluded_fields. included_fields and excluded_fields are
@@ -146,7 +146,7 @@ typedef struct parser_t {
     int  num_excluded_fields;   /* Size of excluded_fields */
     int  field_index;           /* Index of current field being parsed */
 
-    
+
     // Tokenizing stuff
     ParserState state;
     int doublequote;            /* is " represented by ""? */
@@ -184,7 +184,11 @@ typedef struct parser_t {
     int skip_empty_lines;
 } parser_t;
 
-
+#ifdef BUILD_tclcsv
+# undef TCL_STORAGE_CLASS
+# define TCL_STORAGE_CLASS DLLEXPORT
+#endif
+EXTERN int Tclcsv_Init(Tcl_Interp *interp);
 
 void debug_print_parser(parser_t *self);
 

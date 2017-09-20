@@ -1,0 +1,14 @@
+The tclcsv extension
+Version 2.2.1
+
+Copyright (c) 2016 Ashok P. Nadkarni. All rights reserved.
+
+The tclcsv extension for Tcl provides a fast and flexible means of
+reading text files in Comma Separated Value (CSV) format.
+
+The extension requires Tcl version 8.6 or later.
+
+For documentation see http://tclcsv.magicsplat.com
+
+This is a modified version without using critcl in order to be
+built for AndroWish and to be compiled using TEA/configure/make.

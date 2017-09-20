@@ -18,7 +18,7 @@ if {![llength [info commands snit::widget]] ||
     ![llength [info commands winfo]]} {
     return
 }
-    
+
 package require msgcat
 
 namespace eval tclcsv {
@@ -32,12 +32,12 @@ namespace eval tclcsv {
         skip_empty_l   "Skip lines that are empty"
         quote_doubled_l "Quotes are represented by doubling"
         ignore_leading_space_l "Ignore leading space in fields"
-        
+
         delimiter_char_l Delimiter
         comment_char_l "Comment character"
         quote_char_l   "Quote character"
         escape_char_l  "Escape character"
-        
+
         none_l         None
         space_l        Space
         tab_l          Tab
@@ -48,7 +48,7 @@ namespace eval tclcsv {
         squote_l       "Single quote (')"
         backslash_l    "Backslash (\)"
         other_l        Other
-        
+
         include_l      Include
         heading_l      Heading
         type_l         Type
@@ -69,7 +69,7 @@ namespace eval tclcsv::sframe {
 
     namespace ensemble create
     namespace export *
-    
+
     # Create a scrollable frame or window.
     proc new {path args} {
         # Use the ttk theme's background for the canvas and toplevel
@@ -78,28 +78,28 @@ namespace eval tclcsv::sframe {
             # Use a specific color on the aqua theme as 'ttk::style lookup' is not accurate.
             set bg "#e9e9e9"
         }
-        
+
         # Create the main frame or toplevel.
         if { [dict exists $args -toplevel]  &&  [dict get $args -toplevel] } {
             toplevel $path  -bg $bg
         } else {
             ttk::frame $path
         }
-        
+
         # Create a scrollable canvas with scrollbars which will always be the same size as the main frame.
         set canvas [canvas $path.canvas -bg $bg -bd 0 -highlightthickness 0 -yscrollcommand [list $path.scrolly set] -xscrollcommand [list $path.scrollx set]]
         ttk::scrollbar $path.scrolly -orient vertical   -command [list $canvas yview]
         ttk::scrollbar $path.scrollx -orient horizontal -command [list $canvas xview]
-        
-        # Create a container frame which will always be the same size as the canvas or content, whichever is greater. 
+
+        # Create a container frame which will always be the same size as the canvas or content, whichever is greater.
         # This allows the child content frame to be properly packed and also is a surefire way to use the proper ttk background.
         set container [ttk::frame $canvas.container]
         pack propagate $container 0
-        
-        # Create the content frame. Its size will be determined by its contents. This is useful for determining if the 
+
+        # Create the content frame. Its size will be determined by its contents. This is useful for determining if the
         # scrollbars need to be shown.
         set content [ttk::frame $container.content]
-        
+
         # Pack the content frame and place the container as a canvas item.
         set anchor "n"
         if { [dict exists $args -anchor] } {
@@ -107,39 +107,39 @@ namespace eval tclcsv::sframe {
         }
         pack $content -anchor $anchor
         $canvas create window 0 0 -window $container -anchor nw
-        
+
         # Grid the scrollable canvas sans scrollbars within the main frame.
         grid $canvas   -row 0 -column 0 -sticky nsew
         grid rowconfigure    $path 0 -weight 1
         grid columnconfigure $path 0 -weight 1
-        
+
         # Make adjustments when the sframe is resized or the contents change size.
         bind $path.canvas <Expose> [list [namespace current]::resize $path]
-        
+
         # Mousewheel bindings for scrolling.
         bind [winfo toplevel $path] <MouseWheel>       [list +[namespace current] scroll $path yview %W %D]
         bind [winfo toplevel $path] <Shift-MouseWheel> [list +[namespace current] scroll $path xview %W %D]
-        
+
         return $path
     }
-    
-    
+
+
     # Given the toplevel path of an sframe widget, return the path of the child frame suitable for content.
     proc content {path} {
         return $path.canvas.container.content
     }
-    
-    
+
+
     # Make adjustments when the the sframe is resized or the contents change size.
     proc resize {path} {
         set canvas    $path.canvas
         set container $canvas.container
         set content   $container.content
-        
+
         # Set the size of the container. At a minimum use the same width & height as the canvas.
         set width  [winfo width $canvas]
         set height [winfo height $canvas]
-        
+
         # If the requested width or height of the content frame is greater then use that width or height.
         if { [winfo reqwidth $content] > $width } {
             set width [winfo reqwidth $content]
@@ -148,10 +148,10 @@ namespace eval tclcsv::sframe {
             set height [winfo reqheight $content]
         }
         $container configure  -width $width  -height $height
-        
+
         # Configure the canvas's scroll region to match the height and width of the container.
         $canvas configure -scrollregion [list 0 0 $width $height]
-        
+
         # Show or hide the scrollbars as necessary.
         # Horizontal scrolling.
         if { [winfo reqwidth $content] > [winfo width $canvas] } {
@@ -167,9 +167,9 @@ namespace eval tclcsv::sframe {
         }
         return
     }
-    
-    
-    # Handle mousewheel scrolling.    
+
+
+    # Handle mousewheel scrolling.
     proc scroll {path view W D} {
         if { [winfo exists $path.canvas]  &&  [string match $path.canvas* $W] } {
             $path.canvas $view scroll [expr {-$D}] units
@@ -275,7 +275,7 @@ proc tclcsv::fit_text {win str font pixels alignment snipStr} {
 # format text in a label, truncating and adding ellipsis as necessary.
 # Also show "" as <empty> for better visual display
 proc tclcsv::format_label {win text {align left} {font TkDefaultFont}} {
-    # Window has not been mapped yet. 
+    # Window has not been mapped yet.
     if {$text eq ""} {
         set text <empty>
     }
@@ -283,7 +283,7 @@ proc tclcsv::format_label {win text {align left} {font TkDefaultFont}} {
     if {$nchars > 10} {
         set nchars 10
         set width [font measure $font -displayof $win [string repeat a $nchars]]
-        set text [fit_text $win $text $font $width $align \u2026]; # Ellipsis 
+        set text [fit_text $win $text $font $width $align \u2026]; # Ellipsis
     }
     $win configure -text $text
 }
@@ -292,7 +292,7 @@ proc tclcsv::format_label {win text {align left} {font TkDefaultFont}} {
 snit::widget tclcsv::dialectpicker {
     hulltype ttk::frame
 
-    # 
+    #
     # Options related to parsing the CSV. These can be specified by the
     # caller to initialize the settings for reading CSV data. They can
     # then be changed interactively by the user through the various
@@ -310,7 +310,7 @@ snit::widget tclcsv::dialectpicker {
     # Holds the "Other" entry content for specifying special characters
     # Array indexed by option
     variable _other;   # Array contents of "Other" entry boxes indexed by option
-    
+
     option -skipblanklines -default 1 -readonly 1
     option -skipleadingspace -default 0 -readonly 1
     option -doublequote -default 1 -readonly 1
@@ -322,7 +322,7 @@ snit::widget tclcsv::dialectpicker {
     variable _optf;            # Option frame
     variable _charf;           # Character picker frame
     variable _dataf;           # Data frame
-    
+
 
     # If specified, the column metadata widgets are displayed
     # (name, type etc.). The value must be a dictionary keyed by a
@@ -333,13 +333,13 @@ snit::widget tclcsv::dialectpicker {
 
     # Stores display strings of column types. Array indexed by col number
     variable _column_type_display_strings
-    
+
     # Stores information whether a column is included or not and column heading,
     # Only used if caller specified the -columntypes option
     # Arrays indexed by column number
     variable _included_columns
     variable _column_headings
-    
+
     # Store state information about the channel we are reading from
     # path - path to file - ONLY PRESENT IF PASSED IN PATH INSTEAD OF CHANNEL
     # name - channel name
@@ -351,18 +351,18 @@ snit::widget tclcsv::dialectpicker {
     variable _num_data_lines;    # Number actually read
     variable _data_grid_first_data_row; # First row that contains actual values
     variable _data_grid_first_data_col; # First col that contains actual values
-    
+
     constructor {args} {
         if {[llength $args] == 0} {
             error "wrong # args: should be \"dialectpicker ?options? channel\""
         }
         set chan [lindex $args end]
         set args [lrange $args 0 end-1]
-        
+
         $hull configure -borderwidth 0
 
         array set _included_columns {}
-        
+
         # Init channel and remember original settings for restoring in
         # destructor
         $self ChanInit $chan
@@ -371,7 +371,7 @@ snit::widget tclcsv::dialectpicker {
         set _optf [ttk::frame $win.f-opt -padding 4]
         set _charf [ttk::frame $win.f-char]
         set _dataf [tclcsv::sframe new $win.f-data -anchor w]
-        
+
         # File character encoding
         ttk::frame $_optf.f-encoding
         ttk::label $_optf.f-encoding.l -text [mc encoding_l]
@@ -392,7 +392,7 @@ snit::widget tclcsv::dialectpicker {
         set delimiterf [$self MakeCharPickerFrame -delimiter delimiter_char_l \
                             [list tab_l \t space_l { } comma_l , semicolon_l ";"] \
                             \t]
-        
+
         # Comment char
         set commentf [$self MakeCharPickerFrame -comment comment_char_l  \
                           [list none_l "" hash_l "#"]]
@@ -412,7 +412,7 @@ snit::widget tclcsv::dialectpicker {
         grid $_optf.cb-headerpresent $_optf.cb-skipblanklines -sticky ew
         grid $_optf.cb-doublequote $_optf.cb-skipleadingspace -sticky ew
         grid columnconfigure $_optf all -weight 1 -uniform width
-        
+
         pack $_optf -fill none -expand n -pady 4 -anchor w
 
         # Special characters
@@ -442,7 +442,7 @@ snit::widget tclcsv::dialectpicker {
             }
         }
     }
-    
+
     # -columntypes option handler
     method SetOptColumnTypes {opt val} {
         # Make sure the types returned by sniff_header are included
@@ -456,7 +456,7 @@ snit::widget tclcsv::dialectpicker {
             dict set val integer {display Integer align right}
         }
         set options(-columntypes) $val
-        
+
         dict for {tok meta} $options(-columntypes) {
             # Fill in any display strings that are not set
             if {![dict exists $meta display] ||
@@ -495,7 +495,7 @@ snit::widget tclcsv::dialectpicker {
             set options($opt) "other"
         }
     }
-    
+
     # Handler for special character related option.
     method SetOptCharPicker {opt val} {
         if {[string length $val] > 1} {
@@ -521,7 +521,7 @@ snit::widget tclcsv::dialectpicker {
         ttk::entry $e -textvariable [myvar _other($opt)] -width 2 -validate all -validatecommand [mymethod ValidateCharPickerEntry %d $opt %s %P $default_rb_value]
         return $e
     }
-    
+
     # Validation callback for the "Other" entry fields. Ensures no more
     # than one char and also configures radio buttons based on content
     method ValidateCharPickerEntry {validation_type opt old new {default_rb_value {}}} {
@@ -540,7 +540,7 @@ snit::widget tclcsv::dialectpicker {
                 # We used to reset to the default button but that does not work
                 # well when changing the content of the Other entry field
                 if {0} {
-                    set options($opt) $default_rb_value 
+                    set options($opt) $default_rb_value
                 }
             }
         } else {
@@ -574,7 +574,7 @@ snit::widget tclcsv::dialectpicker {
             focus $_charf.f-delimiter.e-other
             return
         }
-            
+
         set rows [$self ChanRead]
         set nrows [llength $rows]
         # Find the max number of columns
@@ -587,7 +587,7 @@ snit::widget tclcsv::dialectpicker {
         set f [tclcsv::sframe content $_dataf]
         destroy {*}[winfo children $f]
         array unset _included_columns *
-        
+
         if {$nrows == 0 || $ncols == 0} {
             grid [ttk::label $f.l-nodata -text "No data to display"] -sticky nw
             return
@@ -615,12 +615,12 @@ snit::widget tclcsv::dialectpicker {
                 # Entry boxes for column heading
                 set e [ttk::entry $f.e-heading-$j -textvariable [myvar _column_headings($j)]]
                 grid $e -sticky ew -padx 1 -row 1 -column $grid_col
-                
+
                 # Widget for specifying type of the column (for alignment)
                 set combo [ttk::combobox $f.cb-type-$j -width 8 -textvariable [myvar _column_type_display_strings($j)] -values $type_display_strings -state readonly]
                 bind $combo <<ComboboxSelected>> [mymethod ChangeColumnType $j]
                 grid $combo -sticky ew -padx 1 -row 2 -column $grid_col
-                
+
             }
             # Separate the meta fields from data
             grid [ttk::separator $f.sep-$grid_col -orient horizontal] -sticky ew -padx 1 -row [expr {$_data_grid_first_data_row-1}] -column $grid_col -pady 4
@@ -685,7 +685,7 @@ snit::widget tclcsv::dialectpicker {
         }
         return $limit
     }
-    
+
     # Handler when user clicks on the include column checkboxes
     method IncludeColumn {ci} {
         set f [tclcsv::sframe content $_dataf]
@@ -704,7 +704,7 @@ snit::widget tclcsv::dialectpicker {
         }
         return
     }
-       
+
     # Handler for changing a column's type. Changes the sample alignment
     method ChangeColumnType {ci} {
         set f [tclcsv::sframe content $_dataf]
@@ -743,7 +743,7 @@ snit::widget tclcsv::dialectpicker {
         }
         return "left"
     }
-    
+
     # Save the channel settings and initialize it. Sniffs likely
     # CSV format
     method ChanInit {chan} {
@@ -753,7 +753,7 @@ snit::widget tclcsv::dialectpicker {
             set _channel(path) $chan
             set chan [open $chan r]
         }
-        
+
         set _channel(original_encoding) [chan configure $chan -encoding]
         set _channel(original_position)  [chan tell $chan]
         if {$_channel(original_position) == -1} {
@@ -769,7 +769,7 @@ snit::widget tclcsv::dialectpicker {
             set options(-headerpresent) 0
         }
         # Note above setting will be overwritten by options passed by app
-        
+
         return
     }
 
@@ -780,9 +780,9 @@ snit::widget tclcsv::dialectpicker {
         if {[dict get $opts -delimiter] eq ""} {
             error "Delimiter must be specified."
         }
-        
+
         lappend opts -nrows $_max_data_lines
-        
+
         # Rewind the file to where we started from
         chan seek $_channel(name) $_channel(original_position)
         chan configure $_channel(name) -encoding $options(-encoding)
@@ -829,19 +829,19 @@ snit::widget tclcsv::dialectpicker {
         }
         return $opts
     }
-    
+
     # Returns the channel
     method channel {} {
         return $_channel(name)
     }
-    
+
     # Returns the current setting of -encoding
     method encoding {} {
         # Not part of dialectsettings because that can be passed directly
         # to csv_read
         return $options(-encoding)
     }
-    
+
     # Returns the settings related to the CSV dialect and fields to be
     # included. Can be passed
     # to cvs_read
@@ -880,7 +880,7 @@ snit::widget tclcsv::dialectpicker {
         for {set i 0} {$i < $ncols} {incr i} {
             # Note some rows may have extra fields so always check if
             # corresponding array entry actually exists
-            
+
             if {![info exists _included_columns($i)] ||
                 !$_included_columns($i)} {
                 continue;       # Skip this columns

@@ -19,7 +19,7 @@ proc tclcsv::_sniff {chan delimiters} {
 
     # TBD - what if delimiters or quotes is empty?
     # TBD - what if no rows ?
-    
+
     set escapes [list \\ ""]
     set quotes [list \" ']
     set combinations {}
@@ -58,7 +58,7 @@ proc tclcsv::_sniff {chan delimiters} {
         {a b} {
             lassign $a adelim amode afrac
             lassign $b bdelim bmode bfrac
-            
+
             #return [expr {(sqrt($amode)*$afrac) > (sqrt($bmode)*$bfrac)}]
             set aweight [expr {(sqrt($amode)*$afrac)}]
             set bweight [expr {(sqrt($bmode)*$bfrac)}]
@@ -69,17 +69,17 @@ proc tclcsv::_sniff {chan delimiters} {
             } else {
                 return 0
             }
-        } 
+        }
     }
     set winner [lindex [lsort -decreasing -command [list apply $comparator]  $combinations] 0]
     set delimiter [lindex $winner 0]
     set nfields [lindex $winner 1]
-    
+
     # We have picked a delimiter. Now figure out whether
     # quotes are in use. By default " is assumed to be the quote char
     # If we find sufficient number of fields beginning with and ending
     # with ' then we assume that is the quote character.
-    # Along the way we also check if 
+    # Along the way we also check if
     #   - initial spaces are to be skipped
     #   - quotes are doubled
     #   - an escape character is in use
@@ -153,7 +153,7 @@ proc tclcsv::_sniff {chan delimiters} {
                 set escape [lindex $esc_list 0]
             }
         }
-        
+
         # If every column that had a field beginning with a space also
         # had all fields in that column beginning with a space then
         # we assume leading spaces are to be skipped.
@@ -188,7 +188,7 @@ proc tclcsv::_sniff {chan delimiters} {
     } finally {
         chan seek $chan $seek_pos
     }
-    
+
     set dialect [list -delimiter $delimiter]
     if {[info exists skipleadingspace]} {
         lappend dialect -skipleadingspace $skipleadingspace
@@ -207,7 +207,7 @@ proc tclcsv::_sniff {chan delimiters} {
         }
     }
 
-        
+
     return $dialect
 }
 
@@ -243,7 +243,7 @@ proc tclcsv::sniff_header {args} {
                 set field_type [dict get $types $findex type]
                 if {$field_type eq "string"} continue
                 # Note values starting with 0 treated as strings (eg. zip codes)
-                # Exceptions are 0 and 0.something 
+                # Exceptions are 0 and 0.something
                 if {[string index $val 0] eq "0" &&
                     [string length $val] > 1 &&
                     [string index $val 1] ne "."} {
@@ -317,7 +317,7 @@ proc tclcsv::sniff_header {args} {
     } else {
         return [list $field_types]
     }
-}       
+}
 
 proc tclcsv::dialect {dialect} {
     variable dialects
