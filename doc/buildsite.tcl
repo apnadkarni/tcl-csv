@@ -1,4 +1,8 @@
-set tclcsvversion [source ../src/version.tcl]
+package require fileutil
+foreach line [fileutil::grep DOTVERSION.*= ../win/makefile.vc] {
+    set tclcsvversion [string trim [lindex [split $line =] end]]
+    break
+}
 set target output
 set adocgen_files {
     tclcsv
