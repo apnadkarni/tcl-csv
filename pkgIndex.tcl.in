@@ -3,6 +3,4 @@
 #
 package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ \
     "load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@ ;
-        source [file join $dir csv.tcl] ;
-        source [file join $dir widgets.tcl] ;
-        source [file join $dir version.tcl]"
+        source [file join $dir csv.tcl]"
