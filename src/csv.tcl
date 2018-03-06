@@ -224,7 +224,7 @@ proc tclcsv::sniff_header {args} {
 
     try {
         set rows [csv_read {*}[lrange $args 0 end-1] -nrows 100 $chan]
-        if {$rows < 2} {
+        if {[llength $rows] < 2} {
             error "Insufficient rows in CSV data to sniff headers."
         }
         set width [llength [lindex $rows 0]]
