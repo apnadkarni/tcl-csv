@@ -4,6 +4,7 @@ lappend auto_path ../build/lib
 package require tclcsv
 
 # Tests modeled after test_csv.py in the Python distro.
+# TBD - tests for sniff and sniff_header
 
 proc makechan s {
     set fd [tcl::chan::string $s]
@@ -63,7 +64,7 @@ set crlftext [string map [list \n \r\n] $lftext]
 
 tcltest::test tclcsv-version {Ensure correct version being tested} -body {
     package require tclcsv
-} -result 2.2.1
+} -result 2.2.3
 
 set testnum 0
 
