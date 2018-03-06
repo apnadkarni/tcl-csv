@@ -222,9 +222,11 @@ text {
     _ESCCHAR_ must be an ASCII character or an empty string.
 
     |`-quote _QUOTECHAR_`
-    |Specifies the character to use for quoting when a field contains
+    |Specifies the character used for quoting when a field contains
     special characters such as the delimiter or line terminators.
-    Defaults to the double quote character.
+    If set to the empty string, the input is assumed to have no quoting
+    character and special characters, if any, are expected to have used
+    the escaping mechanism. Defaults to the double quote character.
 
     |`-skipleadingspace _BOOLEAN_`
     |If specified as `true`, leading space characters in fields are stripped.
