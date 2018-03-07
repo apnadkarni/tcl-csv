@@ -39,12 +39,16 @@ proc reader_test_n {fd args} {
     }
 }
 proc badoptval {opt arg} {
-    tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
+    tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt." -returnCodes error
     if {$opt eq "-nrows"} {
-        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Option -nrows is not valid in this mode" -returnCodes error
+        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Option -nrows is not valid in this mode." -returnCodes error
     } else {
-        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
+        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Invalid value for option $opt." -returnCodes error
     }
+}
+
+proc missingoptval {opt} {
+    tcltest::test tclcsv-missingoptval-[incr ::testnum] "Test missing value for $opt" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] \$fd" -cleanup "close \$fd" -result "Missing value for option." -returnCodes error
 }
 
 proc t {text data expected args} {
@@ -89,6 +93,7 @@ t "Single line\\r\\n" "a,b\r\n" {{a b}}
 badoptval -terminator ""
 badoptval -terminator "xx"
 badoptval -terminator \x80
+missingoptval -terminator
 t "-terminator" "a,bxc,xdx,e" {{a b} {c {}} d {{} e}} -terminator x
 t "-terminator treating \\r\\n as ordinary chars" "a,\nbxc,x\r\ndx,e" [list [list a \nb] [list c {}] [list \r\nd] [list {} e]] -terminator x
 t "-terminator" "a,\nbxc,x\r\ndx,ex" [list [list a \nb] [list c {}] [list \r\nd] [list {} e]] -terminator x
@@ -102,6 +107,7 @@ t "-comment # with blanks" "# comment,x\n  #comment, x" [list [list {  }]] -comm
 badoptval -delimiter AA
 badoptval -delimiter \x80
 badoptval -delimiter ""
+missingoptval -delimiter
 t "-delimiter unspecified" "abc,def ghi,\n xyz" {{abc {def ghi} {}} {{ xyz}}}
 t "-delimiter space" "abc,def ghi,\n xyz" {{abc,def ghi,} {{} xyz}} -delimiter { }
 t "Consecutive delimiter" ",,,\r\n,,\r\n" {{{} {} {} {}} {{} {} {}}}
@@ -111,6 +117,7 @@ t "-delimiter tab" [string map [list , \t] $lftext] {{a {b c} d} {{  e} {f  } g}
 # Quoting tests
 badoptval -quote "aa"
 badoptval -quote \x80
+missingoptval -quote
 t "Default quotes" "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"" [list [list a b,c d] [list e,f g h\ni]]
 t "-quote \"\"" "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"" [list [list a \"b c\" d] [list \"e f\" g \"h] [list i\"]] -quote ""
 t "-quote '" "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"" [list [list a \"b c\" d] [list \"e f\" g \"h] [list i\"]] -quote "'"
@@ -119,6 +126,7 @@ t "Default quotes" "a,'b,c',d\n'e,f',g,'h\ni'" [list [list a b,c d] [list e,f g 
 # Skip blank lines
 badoptval -skipblanklines ""
 badoptval -skipblanklines nonboolean
+missingoptval -skipblanklines
 t "Skip blank lines" " \n\n  \n" {}
 t "-skipblanklines 0" " \n\n  \nabc,def" [list [list { }] [list ] [list {  }] [list abc def]] -skipblanklines 0
 t "-skipblanklines true" " \n\n  \nabc,def" [list [list abc def]] -skipblanklines true
@@ -126,6 +134,7 @@ t "-skipblanklines true" " \n\n  \nabc,def" [list [list abc def]] -skipblankline
 # Escape character
 badoptval -escape AA
 badoptval -escape \x80
+missingoptval -escape
 t "No escape (default)" "a\\,b\\,c\\\n\n\\d,\\e" [list [list "a\\" "b\\" "c\\"] [list \\d \\e]]
 t "-escape \\" "a\\,b\\,c\\\n\n\\d,\\e" [list [list a,b,c\n] [list d e]] -escape \\
 t "-escape ^" "a^,b^,c^\n\n^d,^e" [list [list a,b,c\n] [list d e]] -escape ^
@@ -133,6 +142,7 @@ t "-escape ^" "a^,b^,c^\n\n^d,^e" [list [list a,b,c\n] [list d e]] -escape ^
 # -doublequote
 badoptval -doublequote ""
 badoptval -doublequote nonboolean
+missingoptval -doublequote
 t "-doublequote (default)" "a,\"b\"\"c\"\nd" [list [list a "b\"c"] [list d]]
 t "-doublequote true" "a,\"b\"\"c\"\nd" [list [list a "b\"c"] [list d]] -doublequote true
 # The following test requires some explanation. When -doublequote is false,
@@ -143,6 +153,7 @@ t "-doublequote false" "a,\"b\"\"c\"\nd" [list [list a "b\"c\""] [list d]] -doub
 # -startline
 badoptval -startline ""
 badoptval -startline noninteger
+missingoptval -startline
 t "-startline 0" "a,b\nc,d,\ne,f" {{a b} {c d {}} {e f}} -startline 0
 t "-startline 2" "a,b\nc,d,\ne,f" {{e f}} -startline 2
 t "-startline 2 -comment #" "#,comment\na,b\nc,d,\n#comment\ne,f" {{c d {}} {e f}} -startline 2 -comment #
@@ -151,6 +162,7 @@ t "-startline end" "a,b\nc,d,\ne,f" {} -startline 4
 
 # -skiplines
 badoptval -skiplines {-1}
+missingoptval -skiplines
 err "-skiplines {noninteger}" "" {expected integer but got "noninteger"}  -skiplines {noninteger}
 t "-skiplines {}" "a,b\nc,d,\ne,f" {{a b} {c d {}} {e f}} -skiplines {}
 t "-skiplines {1 2 5}" "a,b\nc,d,\ne,f\ng,h" {{a b} {g h}} -skiplines {1 2 5}
@@ -161,6 +173,7 @@ t "-skiplines {1 2 5}" "#comment\na,b\nc,d,\ne,f\ng,h" {{e f} {g h}} -skiplines 
 badoptval -nrows notanint
 badoptval -nrows {}
 badoptval -nrows {1 2}
+missingoptval -nrows
 t "-nrows 0" "line0\nline1\nline2\nline3" {} -nrows 0
 t "-nrows 2" "line0\nline1\nline2\nline3" {line0 line1} -nrows 2
 t "-nrows 5" "line0\nline1\nline2\nline3" {line0 line1 line2 line3} -nrows 5
@@ -171,6 +184,7 @@ t "-nrows 2 -skiplines 1 -comment #" "line0\n#comment\nline1\nline2\nline3" {lin
 
 # -includefields -excludefields
 badoptval -includefields {1000}
+missingoptval -includefields
 t "-includefields {}" "a,b,c\nd,e,f" {{a b c} {d e f}} -includefields {} 
 t "-includefields {1}" "a,b,c\nd,e,f" {b e} -includefields {1} 
 t "-includefields {0 2}" "a,b,c\nd,e,f" {{a c} {d f}} -includefields {0 2} 
@@ -178,6 +192,7 @@ t "-includefields {0 2 999}" "a,b,c\nd,e,f" {{a c} {d f}} -includefields {0 2 99
 t "-includefields {2 2 0}" "a,b,c\nd,e,f" {{a c} {d f}} -includefields {2 2 0} 
 t "-includefields {2 1 0}" "a,b,c\nd,e,f" {{a b c} {d e f}} -includefields {2 1 0} 
 badoptval -excludefields {1000}
+missingoptval -excludefields
 t "-excludefields {}" "a,b,c\nd,e,f" {{a b c} {d e f}} -excludefields {} 
 t "-excludefields {0 1 2}" "a,b,c\nd,e,f" {{} {}} -excludefields {0 1 2} 
 t "-excludefields {1}" "a,b,c\nd,e,f" {{a c} {d f}} -excludefields {1} 
