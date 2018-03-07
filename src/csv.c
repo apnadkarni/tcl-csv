@@ -1537,7 +1537,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             != TCL_OK)
             goto error_handler;
         if ((i+1) >= (objc-1)) {
-            Tcl_SetResult(ip, "Missing argument for option", TCL_STATIC);
+            Tcl_SetResult(ip, "Missing value for option.", TCL_STATIC);
             goto error_handler;
         }
         s = Tcl_GetStringFromObj(objv[i+1], &len);
@@ -1560,7 +1560,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             break;
         case CSV_NROWS:
             if (pnrows == NULL) {
-                Tcl_SetResult(ip, "Option -nrows is not valid in this mode", TCL_STATIC);
+                Tcl_SetResult(ip, "Option -nrows is not valid in this mode.", TCL_STATIC);
                 goto error_handler;
             }
             res = Tcl_GetIntFromObj(ip, objv[i+1], &nrows);
@@ -1664,7 +1664,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
     return parser;
 
 invalid_option_value: /* objv[i] should be the invalid option */
-    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s", Tcl_GetString(objv[i])));
+    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s.", Tcl_GetString(objv[i])));
     /* Fall thru to error return */
 error_handler:
     if (parser)
@@ -1693,7 +1693,7 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
         if (parser->errorObj)
             Tcl_SetObjResult(ip, parser->errorObj);
         else
-            Tcl_SetResult(ip, "Error parsing CSV", TCL_STATIC);
+            Tcl_SetResult(ip, "Error parsing CSV.", TCL_STATIC);
     }
 
     parser_free(parser);
@@ -1714,8 +1714,8 @@ struct csv_write_config {
 static void csv_write_config_init (struct csv_write_config *config)
 {
     config->delimiter  = ',';
-    config->lineterminator1 = '\r';
-    config->lineterminator2 = '\n';
+    config->lineterminator1 = '\n';
+    config->lineterminator2 = '\0';
     config->escapechar = '\0';
     config->quotechar  = '"';
     config->quoting    = QUOTE_MINIMAL;
@@ -2020,7 +2020,7 @@ int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
             return TCL_ERROR;
 
         if ((i+1) >= (objc-1)) {
-            Tcl_SetResult(ip, "Missing argument for option", TCL_STATIC);
+            Tcl_SetResult(ip, "Missing value for option.", TCL_STATIC);
             return TCL_ERROR;
         }
         s = Tcl_GetStringFromObj(objv[i+1], &len);
@@ -2069,6 +2069,6 @@ int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
     return csv_write(ip, chan, objv[objc-1], &config);
 
 invalid_option_value: /* objv[i] should be the invalid option */
-    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s", Tcl_GetString(objv[i])));
+    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s.", Tcl_GetString(objv[i])));
     return TCL_ERROR;
 }
