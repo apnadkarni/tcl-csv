@@ -310,6 +310,8 @@ Tclcsv_Init(Tcl_Interp *interp)
     clsPtr->counter = 0;
     Tcl_CreateObjCommand(interp, "::tclcsv::csv_read", csv_read_cmd,
 			 NULL, NULL);
+    Tcl_CreateObjCommand(interp, "::tclcsv::csv_write", csv_write_cmd,
+			 NULL, NULL);
     Tcl_CreateObjCommand(interp, "::tclcsv::reader", CSVClassCmd,
 			 (ClientData) clsPtr, CSVClassRelease);
     Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION);

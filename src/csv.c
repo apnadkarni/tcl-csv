@@ -16,6 +16,7 @@
 */
 
 #include "csv.h"
+#include <ctype.h>
 
 static parser_t* parser_new(void);
 static int parser_init(parser_t *self);
@@ -1572,6 +1573,13 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             parser->quotechar = *s;
             break;
         case CSV_QUOTING:
+            /* 
+             * NOTE: this is currently undocumented because for readers,
+             * it does not seem to have any effect beyond what is already
+             * provided for by the -quote option where -quote "" works
+             * similar to QUOTE_NONE. The other options do not have
+             * effect on reads.
+             */
             if (!strcmp(s, "all"))
                 parser->quoting = QUOTE_ALL;
             else if (!strcmp(s, "minimal"))
@@ -1690,4 +1698,377 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
 
     parser_free(parser);
     return res;
+}
+
+struct csv_write_config {
+    char delimiter;      /* Delimiter character */
+    char lineterminator1; /* Character to use as line terminator */
+    char lineterminator2; /* Character to use as line terminator */
+    char escapechar;     /* `\0` or character to use as escape char */
+    char quotechar;      /* `\0` or character to use for quoting */
+    char quoting;        /* QUOTE_MINIMAL etc. that controls level of quoting */
+    char doublequote;    /* Whether quote characters in data should be doubled */
+    char specials[6];    /* Used for search for special characters */
+};
+
+static void csv_write_config_init (struct csv_write_config *config)
+{
+    config->delimiter  = ',';
+    config->lineterminator1 = '\r';
+    config->lineterminator2 = '\n';
+    config->escapechar = '\0';
+    config->quotechar  = '"';
+    config->quoting    = QUOTE_MINIMAL;
+    config->doublequote = 1;
+    config->specials[0] = '\0'; /* Filled later */
+}
+
+/* Return 1 if s is numeric, 0 otherwise. s must be null terminated */
+static int csv_numeric(const char *s)
+{
+    const char *p = s;
+    double dval;
+        
+    /*
+     * TBD - not sure if this is faster than using standard conversion
+     * routines but note that numerics include integers and decimals of
+     * arbitrary length but not hexadecimals.
+     */
+
+    
+    if (*p == '\0')
+        return 0;               /* empty string */
+    else if (*p == '+' || *p == '-') {
+        if (p[1] == '\0')
+            return 0; /* Plain +/- is not a number */
+        ++p;
+    }
+
+    CSV_ASSERT(*p != '\0');
+    
+    while (*p) {
+        if (! isascii(*p) || !isdigit(*p))
+            break;
+        ++p;
+    }
+    
+    if (*p == '\0')
+        return 1;               /* Integer of arbitrary length */
+
+    /* Check for decimal or arbitrary length */
+    if (*p == '.') {
+        ++p;
+        while (*p) {
+            if (! isascii(*p) || !isdigit(*p))
+                break;
+            ++p;
+        }
+        if (*p == '\0')
+            return 1;               /* Decimal fraction of arbitrary length */
+    }
+
+    /* Finally check floating point formats */
+    if (Tcl_GetDouble(NULL, s, &dval) == TCL_OK)
+        return 1;
+    else
+        return 0;
+}
+
+static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_config *config)
+{
+    char *src, *dst, *p, *end;
+    int slen, dlen;
+    char lineterminator1, lineterminator2, delimiter, quotechar, escapechar;
+    int need_quotes;
+
+    src = Tcl_GetStringFromObj(cell, &slen);
+    end = src + slen;
+    dlen = Tcl_DStringLength(ds);
+
+    /* 
+     * We do not want to keep checking for destination space so make sure
+     * the DString has enough space to begin with. The max length would be
+     * length of source string plus possibly two bytes for leading and trailing
+     * quotes plus either an escape or doubled quote for each special character
+     * which in worst case is entire source string.
+     */
+    Tcl_DStringSetLength(ds, dlen + 1 + slen + slen + 1);
+    
+    /* Get pointer to string AFTER above since DString might be reallocated */
+    dst = Tcl_DStringValue(ds);
+    dst += dlen;
+
+    /* Get the location of the first special character in source, if any */
+    p = strpbrk(src, config->specials);
+
+    /* See if we need to quote */
+    switch (config->quoting) {
+    case QUOTE_NONE:
+        need_quotes = 0;        /* Never quote */
+        CSV_ASSERT(config->escapechar);
+        break;
+    case QUOTE_MINIMAL:
+        need_quotes = (p != NULL); /* Quote if special chars present */
+        break;
+    case QUOTE_NONNUMERIC:
+        /* Need quotes unless strictly digits or special chars */
+        if (p != NULL || ! csv_numeric(src))
+            need_quotes = 1;
+        else
+            need_quotes = 0;
+        break;
+    case QUOTE_ALL:
+        need_quotes = 1;
+        break;
+    }
+
+    lineterminator1 = config->lineterminator1;
+    lineterminator2 = config->lineterminator2;
+    delimiter      = config->delimiter;
+    quotechar      = config->quotechar;
+    escapechar     = config->escapechar;
+
+    if (need_quotes)
+        *dst++ = quotechar;
+    
+    if (p == NULL) {
+        /* No special chars. Just copy everything over */
+        strncpy(dst, src, slen);
+        dst += slen;
+        if (need_quotes)
+            *dst++ = quotechar;
+        p = Tcl_DStringValue(ds);
+        CSV_ASSERT((dst-p) < Tcl_DStringLength(ds)); /* Assert no buf overflo */
+        Tcl_DStringSetLength(ds, dst - p);
+        return;
+    }
+        
+    /* Copy the characters before the first special char */
+    if (p != NULL) {
+        int len = p - src;
+        strncpy(dst, src, len);
+        dst += len;
+        src += len;
+    }
+
+    /* Now copy the remaining characters.  */
+    if (need_quotes) {
+        /*
+         * For quoted strings, we only need to take care of quotes in
+         * content. Depending on settings they are either doubled up
+         * or escaped.
+         */
+        if (config->doublequote) {
+            while (src < end) {
+                if (*src == quotechar)
+                    *dst++ = quotechar; /* Double the quote */
+                *dst++ = *src++;
+            }
+        } else {
+            CSV_ASSERT(escapechar != '\0');
+            while (src < end) {
+                if (*src == quotechar)
+                    *dst++ = escapechar; /* Escape the quote */
+                *dst++ = *src++;
+            }
+        }
+
+        *dst++ = quotechar;     /* Terminating quote */
+    } else {
+        /* Special characters but no quoting permitted so use escapes */
+        CSV_ASSERT(escapechar != '\0');
+        while (src < end) {
+            if (*src == quotechar ||
+                *src == lineterminator1 ||
+                *src == lineterminator2 ||
+                *src == escapechar ||
+                *src == delimiter)
+                *dst++ = escapechar;
+            *dst++ = *src++;
+        }
+    }
+
+    p = Tcl_DStringValue(ds);
+    CSV_ASSERT((dst-p) < Tcl_DStringLength(ds)); /* Assert no buf overflo */
+    Tcl_DStringSetLength(ds, dst - p);
+}
+
+static int csv_write(Tcl_Interp *ip, Tcl_Channel chan, Tcl_Obj *rowObj, struct csv_write_config *config)
+{
+    Tcl_Obj **rows, **cells;
+    int r, c, nrows, ncells, len;
+    Tcl_DString ds;
+
+    Tcl_DStringInit(&ds);
+
+    /* 
+     * Quoting is turned off either via quotechar being empty or 
+     * quoting policy being QUOTE_NONE.
+     */
+    if (config->quotechar == '\0')
+        config->quoting = QUOTE_NONE;
+    else if (config->quoting == QUOTE_NONE)
+        config->quotechar = '\0';
+        
+    if (config->escapechar == '\0') {
+        /* No escape char specified. Must allow quoting then for delimiters */
+        if (config->quoting == QUOTE_NONE) {
+            Tcl_SetResult(ip, "An escape character must be specified if quoting is disabled.", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        if (! config->doublequote) {
+            Tcl_SetResult(ip, "An escape character must be specified if doubling of quotes is disabled.", TCL_STATIC);
+            return TCL_ERROR;
+        }
+    }
+    
+    if (Tcl_ListObjGetElements(ip, rowObj, &nrows, &rows) != TCL_OK)
+        return TCL_ERROR;
+
+    /* 
+     * Construct list of characters that are special based on settings.
+     * Really used in csv_format_cell but we do it here as to avoid repeating
+     * the initialization within the loop.
+     */
+    r = 0;
+    config->specials[r++] = config->delimiter;
+    if (config->lineterminator1)
+        config->specials[r++] = config->lineterminator1;
+    if (config->lineterminator2)
+        config->specials[r++] = config->lineterminator2;
+    if (config->quotechar)
+        config->specials[r++] = config->quotechar;
+    if (config->escapechar)
+        config->specials[r++] = config->escapechar;
+    config->specials[r] = '\0';
+
+    for (r = 0; r < nrows; ++r) {
+        if (Tcl_ListObjGetElements(ip, rows[r], &ncells, &cells) != TCL_OK)
+            goto error_exit;
+
+        for (c = 0; c < ncells; ++c) {
+            csv_format_cell(&ds, cells[c], config);
+            /* Append delimiter unless this is the last cell */
+            if (c != (ncells-1))
+                Tcl_DStringAppend(&ds, &config->delimiter, 1);
+        }
+        Tcl_DStringAppend(&ds, &config->lineterminator1, 1);
+        if (config->lineterminator2)
+            Tcl_DStringAppend(&ds, &config->lineterminator2, 1);
+        /* Minimize number of I/O but at same time, keep memory reasonable */
+        len = Tcl_DStringLength(&ds);
+        if (len > 10000) {
+            if (Tcl_WriteChars(chan, Tcl_DStringValue(&ds), len) < 0)
+                goto io_error;
+            Tcl_DStringSetLength(&ds, 0);
+        }
+    }
+    
+    /* Write any remaining bytes */
+    len = Tcl_DStringLength(&ds);
+    if (len > 0) {
+        if (Tcl_WriteChars(chan, Tcl_DStringValue(&ds), len) < 0)
+            goto io_error;
+    }
+    Tcl_DStringFree(&ds);
+
+    return TCL_OK;
+
+io_error: /* ds must have been initialized */
+    Tcl_SetResult(ip, "Error writing to channel.", TCL_STATIC);
+
+error_exit: /* ds must have been initialized */
+    Tcl_DStringFree(&ds);
+    return TCL_ERROR;
+}
+
+
+int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
+                  int objc, Tcl_Obj *const objv[])
+{
+    int i, mode, ival;
+    static const char *switches[] = {
+        "-delimiter", "-doublequote", "-escape",
+        "-quote", "-quoting", "-terminator",
+        NULL
+    };
+    enum switches_e {
+        CSV_DELIMITER, CSV_DOUBLEQUOTE, CSV_ESCAPE,
+        CSV_QUOTE, CSV_QUOTING, CSV_TERMINATOR,
+    };
+    struct csv_write_config config;
+    Tcl_Channel chan;
+    
+    if (objc < 3) {
+        Tcl_WrongNumArgs(ip, 1, objv, "?options? CHANNEL ROWS");
+        return TCL_ERROR;
+    }
+    chan = Tcl_GetChannel(ip, Tcl_GetString(objv[objc-2]), &mode);
+    if (chan == NULL)
+        return TCL_ERROR;
+    if (!(mode & TCL_WRITABLE)) {
+        Tcl_SetResult(ip, "Channel is not open for writing.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    csv_write_config_init(&config);
+    for (i = 1; i < objc-2; i += 2) {
+        int opt, len;
+        char *s;
+	if (Tcl_GetIndexFromObj(ip, objv[i], switches, "option", 0, &opt)
+            != TCL_OK)
+            return TCL_ERROR;
+
+        if ((i+1) >= (objc-1)) {
+            Tcl_SetResult(ip, "Missing argument for option", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        s = Tcl_GetStringFromObj(objv[i+1], &len);
+        switch ((enum switches_e) opt) {
+        case CSV_DELIMITER:
+            if (len != 1)
+                goto invalid_option_value;
+            config.delimiter = *s;
+            break;
+        case CSV_ESCAPE:
+            if (len > 1)
+                goto invalid_option_value;
+            config.escapechar = *s; /* \0 -> no escape char */
+            break;
+        case CSV_QUOTE:
+            if (len > 1)
+                goto invalid_option_value;
+            config.quotechar = *s;
+            break;
+        case CSV_QUOTING:
+            if (!strcmp(s, "all"))
+                config.quoting = QUOTE_ALL;
+            else if (!strcmp(s, "minimal"))
+                config.quoting = QUOTE_MINIMAL;
+            else if (!strcmp(s, "nonnumeric"))
+                config.quoting = QUOTE_NONNUMERIC;
+            else if (!strcmp(s, "none"))
+                config.quoting = QUOTE_NONE;
+            else
+                goto invalid_option_value;
+            break;
+        case CSV_TERMINATOR:
+            if (len != 1 && len != 2)
+                goto invalid_option_value;
+            config.lineterminator1 = *s;
+            config.lineterminator2 = s[1]; /* May be \0 */
+            break;
+        case CSV_DOUBLEQUOTE:
+            if (Tcl_GetBooleanFromObj(ip, objv[i+1], &ival) != TCL_OK)
+                goto invalid_option_value;
+            config.doublequote = ival;
+            break;
+        }
+    } 
+
+    return csv_write(ip, chan, objv[objc-1], &config);
+
+invalid_option_value: /* objv[i] should be the invalid option */
+    Tcl_SetObjResult(ip, Tcl_ObjPrintf("Invalid value for option %s", Tcl_GetString(objv[i])));
+    return TCL_ERROR;
 }

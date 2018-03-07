@@ -201,4 +201,6 @@ void parser_free(parser_t *self);
 
 int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
                  int objc, Tcl_Obj *const objv[]);
+int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
+                 int objc, Tcl_Obj *const objv[]);
 #endif // _PARSER_COMMON_H_
