@@ -1,9 +1,9 @@
 # Configure for
-# 	tclcsv 2.2
+# 	tclcsv 2.3
 #
 # Copyright (c) 2016 Ashok P. Nadkarni
 
-AC_INIT([tclcsv],[2.2.3])
+AC_INIT([tclcsv],[2.3])
 
 TEA_INIT([3.9])
 
