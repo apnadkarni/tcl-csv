@@ -1,0 +1,105 @@
+package require tcltest
+package require tcl::chan::string
+lappend auto_path ../build/lib
+package require tclcsv
+
+# Tests modeled after test_csv.py in the Python distro.
+# TBD - tests for sniff and sniff_header
+
+proc makechan vname {
+    upvar 1 $vname v
+    unset -nocomplain v
+    set fd [tcl::chan::variable $v]
+    fconfigure $fd -translation lf
+    return $fd
+}
+
+proc badoptval {opt arg} {
+    tcltest::test write-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan var\]" -body "tclcsv::csv_write [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
+}
+
+proc t {text data expected args} {
+    tcltest::test write-[incr ::testnum] $text -setup "set fd \[makechan var\]" -body "tclcsv::csv_write $args \$fd [list $data]; close \$fd; set var" -result $expected
+}
+
+proc err {text data expected args} {
+    tcltest::test write-err-[incr ::testnum] $text -setup "set fd \[makechan var\]" -body "tclcsv::csv_write $args \$fd [list $data]; close \$fd; set var" -result $expected -returnCodes error
+}
+
+set rows [list \
+              [list a         {b c}   {}] \
+              [list {}        1       deli,miter] \
+              [list esc\\ape  {}      1e10] \
+              [list new\nline {sp ace} carraige\rreturn] \
+              [list {  leading space} {trailing space  } t\tab] \
+              [list "\"leading\ quotes" "trailing quotes\"" "middle\"quotes"]]
+
+set testnum 0
+
+t "Empty input" {} {}
+t "Default options" $rows ""
+
+badoptval -terminator ""
+badoptval -terminator "xxx"
+badoptval -terminator \x80
+t "-terminator basic" {{a b} {c {}} d {{} e}} "a,bxc,xdx,ex" -terminator x
+t "-terminator X" $rows "" -terminator X
+t "-terminator XY" $rows "" -terminator XY
+
+# Delimiter tests
+badoptval -delimiter AA
+badoptval -delimiter \x80
+badoptval -delimiter ""
+t "-delimiter unspecified" {{abc {def ghi} {}} {{ xyz}}} "abc,def ghi,\n xyz\n" 
+t "-delimiter space" {{abc,def ghi,} {{} xyz}} "abc,def ghi,\n xyz\n" -delimiter { }
+t "Consecutive delimiter" {{{} {} {} {}} {{} {} {}}} ",,,\r\n,,\r\n" 
+t "Consecutive -delimiter \\t" {{{} {} {} {}} {{} {} {}}} "\t\t\t\n\t\t\n"  -delimiter \t
+t "-delimiter X" $rows "" -delimiter X
+
+# Quoting tests
+badoptval -quote "aa"
+badoptval -quote \x80
+t "Default quotes" [list [list a b,c d] [list e,f g h\ni]] "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"\n" 
+t "-quote '" [list [list a \"b c\" d] [list \"e f\" g \"h] [list i\"]] "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"\n" -quote "'"
+t "-quote '" [list [list a b,c d] [list e,f g h\ni]] "a,'b,c',d\n'e,f',g,'h\ni'" -quote "'"
+err "-quote \"\" error if escape undefined" {{a,b c} {d e}} ""
+t "-quote \"\" -escape" {{a,b c} {d e}} "" -escape \\
+t "-quote X" $rows "" -quote X
+
+# -quoting
+t "-quoting none" $rows "" -quoting none
+t "-quoting all" $rows "" -quoting all
+t "-quoting minimal" $rows "" -quoting minimal
+t "-quoting nonnumeric" $rows "" -quoting nonnumeric
+err "-quoting none error if escape undefined" {{a,b c} {d e}} "" -quoting none
+t "-quoting none -escape" {{a,b c} {d e}} "" -escape \\ -quoting none
+
+# Escape character
+badoptval -escape AA
+badoptval -escape \x80
+t "-escape \\" [list [list a,b,c\n] [list d e]] "a\\,b\\,c\\\n\n\\d,\\ei\n" -escape \\ -quoting none
+t "-escape ^" [list [list a,b,c\n] [list d e]] "a^,b^,c^\n\n^d,^e\n" -escape ^ -quoting none
+t "-escape X -quoting none" $rows "" -escape X -doublequote false
+
+# -doublequote
+badoptval -doublequote ""
+badoptval -doublequote nonboolean
+t "-doublequote (default)" [list [list a "b\"c"] [list d]] "a,\"b\"\"c\"\nd\n"
+t "-doublequote true" [list [list a "b\"c"] [list d]]  "a,\"b\"\"c\"\nd\n" -doublequote true
+# The following test requires some explanation. When -doublequote is false,
+# the first " matches the one following b and encloses the string b. Subsequent
+# " characters do NOT enclose a string and are treated as they are.
+t "-doublequote false" [list [list a "b\"c\""] [list d]] "a,\"b\"\"c\"\nd\n" -doublequote false
+err "-doublequote false" $rows "" -doublequote false
+t "-doublequote false" $rows "" -doublequote false -escape X
+
+t "-dialect excel" $rows "" {-dialect {*}[tclcsv::dialect excel]}
+t "-dialect excel-tab" $rows "" {-dialect {*}[tclcsv::dialect excel-tab]}
+# Following from Python, not sure if the tests are correct
+t "-escape \\ -quoting minimal -doublequote false" \" "\\\"" -escape \\ -quoting minimal -doublequote false
+t "-escape \\ -quoting none" \" "\\\"" -escape \\ -quoting none
+
+
+# TBD - size tests (large fields/lines)
+
+tcltest::cleanupTests
