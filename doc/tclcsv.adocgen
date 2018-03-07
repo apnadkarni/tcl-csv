@@ -21,7 +21,7 @@ text {
     == Introduction
 
     The `tclcsv` extension for Tcl provides a fast and flexible means of
-    reading text files in _Comma Separated Value_ (CSV) format.
+    reading and writing text files in _Comma Separated Value_ (CSV) format.
 
     [NOTE]
     The http://tcl.activestate.com/software/tcllib/[tcllib]
@@ -90,6 +90,15 @@ text {
     and then create channels from string data
     as shown in the examples in this documentation.
     ====
+
+    === Writing data
+
+    The ((^ tclcsv_csv_write csv_write)) command takes a list of records,
+    each of which is itself a list of fields, and
+    writes it as CSV-formatted data
+    to a specified channel. As for the ((^ tclcsv_csv_read csv_read))
+    command, the format can be controlled with options that specify the
+    dialect.
 
     ((=== tclcsv_dialects "CSV dialects"))
 
@@ -195,7 +204,7 @@ text {
     The following options collectively specify the ((^ tclcsv_dialects dialect))
     of the CSV data.
     
-    ((.Table tab_tclcsv_fmtopts "CSV format options"))
+    ((.Table tab_tclcsv_read_fmtopts "CSV read format options"))
     [cols="20,80"]
     |===
 
@@ -207,7 +216,7 @@ text {
 
     |`-delimiter _DELIMCHAR_`
     |Specifies the delimiter character that separates fields. Defaults
-    to `,`.
+    to the `,` (comma) character.
 
     |`-doublequote _BOOLEAN_`
     |Controls how the quote character inside a field value is treated.
@@ -243,6 +252,71 @@ text {
     fields. If required, the caller has to check that all returned rows
     have the same number of elements.
 }
+
+text {
+    ((cmddef tclcsv_csv_write "csv_write ?_OPTIONS_? _CHANNEL_ _ROWS_"))
+
+    The command writes _ROWS_ to the specified channel _CHANNEL_.
+    _ROWS_ must be a list each of whose elements is a sublist corresponding
+    to a single record.
+    The caller should have appropriately
+    positioned the channel write pointer and configured its encoding before
+    calling this command.
+
+    The CSV ((^ tclcsv_dialects dialect)) used for writing is controlled
+    through the options in the table below.
+    
+    ((.Table tab_tclcsv_write_fmtopts "CSV write format options"))
+    [cols="20,80"]
+    |===
+
+    |`-delimiter _DELIMCHAR_`
+    |Specifies the delimiter character that separates fields. Defaults
+    to the `,` (comma) character. Must be an ASCII character.
+
+    |`-doublequote _BOOLEAN_`
+    |Controls how the quote character inside a field value is treated.
+    If specified as `true` (default), quote characters in a field
+    are doubled. If `false`, they are preceded with an escape character.
+
+    |`-escape _ESCCHAR_`
+    |If quoting is disabled or the `-doublequote` option is false,
+    special characters will be preceded with _ESCCHAR_. By default,
+    or if specified as an empty string, the escaping mechanism is disabled.
+    _ESCCHAR_ must be an ASCII character or an empty string.
+
+    |`-quote _QUOTECHAR_`
+    |Specifies the character used for quoting when a field contains
+    special characters such as the delimiter or line terminators.
+    Defaults to the double quote character.
+    Setting it to the empty string has the same effect as setting
+    the `-quoting` option to `none`. In that case, special characters
+    will be preceded by the escape character.
+
+    |`-quoting _POLICY_`
+    |Controls the policy to use when fields are quoted. If
+    _POLICY_ is set to `none`, fields are never
+    quoted. Delimiters in the data are escaped instead. This has the
+    same effect as setting the `-quote` option to the empty string.
+    If set to `all`, every field is enclosed by the quotation character.
+    If set to `minimal`, only fields that contain special characters
+    like delimiters are enclosed in quotes. Finally, `nonnumeric`
+    indicates that all fields that are not interpreted as numbers
+    are enclosed in quotes. Numbers include decimals 
+    (including decimal fractions) of
+    arbitrary length, and floating point numbers. Other formats like
+    hexadecimal, are not treated as numbers.
+    
+    |`-terminator _TERM_`
+    |Specifies a string of one or two characters to use to terminate a row.
+    This should generally not be specified and it defaults to standard
+    `\n` linefeed character. Keep in mind that the channel encoding
+    settings can be used to then write end of line in a platform specific
+    manner.
+    
+    |===
+}
+
 
 text {
     ((cmddef tclcsv_dialect "dialect _NAME_"))
@@ -363,7 +437,7 @@ text {
     Attempts to guess whether the CSV data contained in the channel
     includes a header. It also attempts to guess the type of the data
     in each column of the CSV file. _OPTIONS_ specify the CSV dialect
-    of the data. See ((^ tab_tclcsv_fmtopts)).
+    of the data. See ((^ tab_tclcsv_read_fmtopts)).
 
     If the data includes a header, the command returns a list with two
     elements, the first of which is a list containing the deduced type
@@ -459,13 +533,13 @@ text {
     |===
     
     |`-comment _CHAR_`
-    |See ((^ tab_tclcsv_fmtopts)).
+    |See ((^ tab_tclcsv_read_fmtopts)).
 
     |`-delimiter _CHAR_`
-    |See ((^ tab_tclcsv_fmtopts)).
+    |See ((^ tab_tclcsv_read_fmtopts)).
 
     |`-doublequote _CHAR_`
-    |See ((^ tab_tclcsv_fmtopts)).
+    |See ((^ tab_tclcsv_read_fmtopts)).
 
     |`-encoding _ENCODING_`
     |Specifies the character encoding to be used for the channel.
@@ -473,7 +547,7 @@ text {
     `encoding names` command.
     
     |`-escape _CHAR_`
-    |See ((^ tab_tclcsv_fmtopts)).
+    |See ((^ tab_tclcsv_read_fmtopts)).
 
     |`-headerpresent _BOOLEAN_`
     |Indicates whether the CSV data is expected
@@ -481,13 +555,13 @@ text {
     heuristics to set the initial value.
 
     |`-quote _CHAR_`
-    |See ((^ tab_tclcsv_fmtopts)).
+    |See ((^ tab_tclcsv_read_fmtopts)).
 
     |`-skipleadingspace _CHAR_`
-    |See ((^ tab_tclcsv_fmtopts)).
+    |See ((^ tab_tclcsv_read_fmtopts)).
 
     |`-skipblanklines _CHAR_`
-    |See ((^ tab_tclcsv_fmtopts)).
+    |See ((^ tab_tclcsv_read_fmtopts)).
 
     |===
     

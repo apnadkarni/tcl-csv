@@ -355,3 +355,7 @@ proc tclcsv::dialectpicker args {
     uplevel #0 [list source [file join $script_dir widgets.tcl]]
     uplevel 1 tclcsv::dialectpicker $args
 }
+
+namespace eval tclcsv {
+    namespace export csv_read csv_write sniff sniff_header dialect
+}
