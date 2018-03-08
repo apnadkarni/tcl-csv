@@ -220,6 +220,12 @@ tcltest::test dialect-2.0 {dialect unknown} -body {
 t "-dialect excel" $lftext {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} {*}[tclcsv::dialect excel]
 t "-dialect excel-tab" [string map [list , \t] $lftext] {{a {b c} d} {{  e} {f  } g} {{} {} {}} {{#} comment {}} {x #comment} {y z#comment}} {*}[tclcsv::dialect excel-tab]
 
-# TBD - size tests (large fields/lines)
+# The following test with large fields is specifically to make
+# sure the internal buffer used to cache output to Tcl_Obj's
+# works on larger data.    
+set long_string_a [string repeat 0123456789 200]
+set long_string_b [string repeat abcd 152]
+# Note no trailing newline at end
+t "large fields" "$long_string_a,$long_string_b\n$long_string_b,$long_string_a" [list [list $long_string_a $long_string_b] [list $long_string_b $long_string_a]]
 
 tcltest::cleanupTests

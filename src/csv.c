@@ -183,6 +183,9 @@ static int parser_init(parser_t *self)
 
     self->state = START_RECORD;
 
+    /* Initial index into field buffer */
+    self->field_buf_index = 0;
+
     return 0;
 }
 
@@ -197,6 +200,16 @@ void parser_free(parser_t *self)
 static int end_field(parser_t *self)
 {
     int included;
+
+    /*
+     * If there is any data in our output buffer, copy it to 
+     * the field object
+     */
+    if (self->field_buf_index != 0) {
+        Tcl_AppendToObj(self->fieldObj, self->field_buf, self->field_buf_index);
+        self->field_buf_index = 0;
+    }
+
     /*
      * A field is included only if it appears in the include list
      * and not in the exclude list. No include list means all included.
@@ -410,15 +423,17 @@ static int parser_buffer_bytes(parser_t *self, size_t nbytes)
   Tokenization macros and state machine code
 */
 
-//    printf("pushing %c\n", c);
-
-#define PUSH_CHAR(c)                            \
-    do {                                        \
-        TRACE(("PUSH_CHAR: Pushing %c\n", c))   \
-        Tcl_AppendToObj(self->fieldObj, &c, 1); \
+#define PUSH_CHAR(c)                                                    \
+    do {                                                                \
+        TRACE(("PUSH_CHAR: Pushing %c\n", c))                           \
+        if (self->field_buf_index == sizeof(self->field_buf)) {         \
+            Tcl_AppendToObj(self->fieldObj, self->field_buf, self->field_buf_index); \
+            self->field_buf_index = 0;                                  \
+        }                                                               \
+        self->field_buf[self->field_buf_index++] = c;                   \
     } while (0)
 
-// This is a little bit of a hack but works for now
+/* This is a little bit of a hack but works for now */
 #define END_FIELD()                             \
     do {                                        \
         if (end_field(self) < 0) {              \

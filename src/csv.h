@@ -157,6 +157,13 @@ typedef struct parser_t {
     Tcl_Obj *errorObj;
 
     int skip_empty_lines;
+
+    /* 
+     * We want to avoid calling Tcl_AppendBuf for every
+     * char so collect here and call when buffer is full
+     */
+    char field_buf[200];
+    int  field_buf_index;
 } parser_t;
 
 #ifdef BUILD_tclcsv
@@ -179,4 +186,4 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
 int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
                  int objc, Tcl_Obj *const objv[]);
 
-#endif // _TCLCSV_H_
+                 #endif /* _TCLCSV_H_ */
