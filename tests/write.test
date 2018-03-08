@@ -1,50 +1,67 @@
 package require tcltest
-package require tcl::chan::string
-lappend auto_path ../build/lib
+package require tcl::chan::variable
 package require tclcsv
 
 # Tests modeled after test_csv.py in the Python distro.
 # TBD - tests for sniff and sniff_header
 
-proc makechan vname {
-    upvar 1 $vname v
-    unset -nocomplain v
-    set fd [tcl::chan::variable $v]
+proc makechan {} {
+    unset -nocomplain ::csv_write_result
+    set fd [tcl::chan::variable ::csv_write_result]
     fconfigure $fd -translation lf
     return $fd
 }
 
 proc badoptval {opt arg} {
-    tcltest::test write-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan var\]" -body "tclcsv::csv_write [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt" -returnCodes error
+    tcltest::test write-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan\]" -body "tclcsv::csv_write [list $opt] [list $arg] \$fd {}" -cleanup "close \$fd" -match regexp -result "^(Invalid value for option $opt.)|(Only ASCII characters permitted for option $opt.)$" -returnCodes error
+}
+
+proc missingoptval {opt} {
+    tcltest::test tclcsv-missingoptval-[incr ::testnum] "Test missing value for $opt" -setup "set fd \[makechan\]" -body "tclcsv::csv_write [list $opt] \$fd {}" -cleanup "close \$fd" -result "Missing value for option." -returnCodes error
 }
 
 proc t {text data expected args} {
-    tcltest::test write-[incr ::testnum] $text -setup "set fd \[makechan var\]" -body "tclcsv::csv_write $args \$fd [list $data]; close \$fd; set var" -result $expected
+    tcltest::test write-[incr ::testnum] $text -setup "set fd \[makechan\]" -body "tclcsv::csv_write $args \$fd [list $data]; close \$fd; set ::csv_write_result" -result $expected
+}
+
+proc hexlines {text} {
+    return [join [lmap line [split $text \n] {
+        return -level 0 "$line  [binary encode hex $line]"
+    }] \n]
+}
+
+# Same as t but hexifies result to make it easier to
+# see difference in the presence of control characters.
+# Used to debug tests
+proc thex {text data expected args} {
+    tcltest::test write-[incr ::testnum] $text -setup "set fd \[makechan\]" -body "tclcsv::csv_write $args \$fd [list $data]; close \$fd; hexlines \$::csv_write_result" -result [hexlines $expected]
 }
 
 proc err {text data expected args} {
-    tcltest::test write-err-[incr ::testnum] $text -setup "set fd \[makechan var\]" -body "tclcsv::csv_write $args \$fd [list $data]; close \$fd; set var" -result $expected -returnCodes error
+    tcltest::test write-err-[incr ::testnum] $text -setup "set fd \[makechan\]" -body "tclcsv::csv_write $args \$fd [list $data]; close \$fd; set ::csv_write_result" -result $expected -returnCodes error
 }
 
 set rows [list \
               [list a         {b c}   {}] \
               [list {}        1       deli,miter] \
               [list esc\\ape  {}      1e10] \
-              [list new\nline {sp ace} carraige\rreturn] \
+              [list new\nline {sp ace} carriage\rreturn] \
               [list {  leading space} {trailing space  } t\tab] \
               [list "\"leading\ quotes" "trailing quotes\"" "middle\"quotes"]]
 
 set testnum 0
 
 t "Empty input" {} {}
-t "Default options" $rows ""
+t "Default options" $rows "a,b c,\n,1,\"deli,miter\"\nesc\\ape,,1e10\n\"new\nline\",sp ace,carriage\rreturn\n  leading space,trailing space  ,t\tab\n\"\"\"leading quotes\",\"trailing quotes\"\"\",\"middle\"\"quotes\"\n"
 
 badoptval -terminator ""
 badoptval -terminator "xxx"
 badoptval -terminator \x80
+missingoptval -terminator
 t "-terminator basic" {{a b} {c {}} d {{} e}} "a,bxc,xdx,ex" -terminator x
-t "-terminator X" $rows "" -terminator X
-t "-terminator XY" $rows "" -terminator XY
+t "-terminator X" $rows "a,b c,X,1,\"deli,miter\"Xesc\\ape,,1e10Xnew\nline,sp ace,carriage\rreturnX  leading space,trailing space  ,t\tabX\"\"\"leading quotes\",\"trailing quotes\"\"\",\"middle\"\"quotes\"X" -terminator X
+t "-terminator XY" $rows "a,b c,XY,1,\"deli,miter\"XYesc\\ape,,1e10XYnew\nline,sp ace,carriage\rreturnXY  leading space,trailing space  ,t\tabXY\"\"\"leading quotes\",\"trailing quotes\"\"\",\"middle\"\"quotes\"XY" -terminator XY
+
 
 # Delimiter tests
 badoptval -delimiter AA
@@ -52,34 +69,34 @@ badoptval -delimiter \x80
 badoptval -delimiter ""
 t "-delimiter unspecified" {{abc {def ghi} {}} {{ xyz}}} "abc,def ghi,\n xyz\n" 
 t "-delimiter space" {{abc,def ghi,} {{} xyz}} "abc,def ghi,\n xyz\n" -delimiter { }
-t "Consecutive delimiter" {{{} {} {} {}} {{} {} {}}} ",,,\r\n,,\r\n" 
+t "Consecutive delimiter" {{{} {} {} {}} {{} {} {}}} ",,,\n,,\n" 
 t "Consecutive -delimiter \\t" {{{} {} {} {}} {{} {} {}}} "\t\t\t\n\t\t\n"  -delimiter \t
-t "-delimiter X" $rows "" -delimiter X
+t "-delimiter X" $rows "aXb cX\nX1Xdeli,miter\nesc\\apeXX1e10\n\"new\nline\"Xsp aceXcarriage\rreturn\n  leading spaceXtrailing space  Xt\tab\n\"\"\"leading quotes\"X\"trailing quotes\"\"\"X\"middle\"\"quotes\"\n" -delimiter X
 
 # Quoting tests
 badoptval -quote "aa"
 badoptval -quote \x80
 t "Default quotes" [list [list a b,c d] [list e,f g h\ni]] "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"\n" 
 t "-quote '" [list [list a \"b c\" d] [list \"e f\" g \"h] [list i\"]] "a,\"b,c\",d\n\"e,f\",g,\"h\ni\"\n" -quote "'"
-t "-quote '" [list [list a b,c d] [list e,f g h\ni]] "a,'b,c',d\n'e,f',g,'h\ni'" -quote "'"
-err "-quote \"\" error if escape undefined" {{a,b c} {d e}} ""
-t "-quote \"\" -escape" {{a,b c} {d e}} "" -escape \\
-t "-quote X" $rows "" -quote X
+t "-quote '" [list [list a b,c d] [list e,f g h\ni]] "a,'b,c',d\n'e,f',g,'h\ni'\n" -quote "'"
+err "-quote \"\" error if escape undefined" {{a,b c} {d e}} "An escape character must be specified if quoting is disabled." -quote ""
+t "-quote \"\" -escape" {{a,b c} {d e}} "a\\,b,c\nd,e\n" -quote "" -escape \\
+t "-quote X" $rows "a,b c,\n,1,Xdeli,miterX\nesc\\ape,,1e10\nXnew\nlineX,sp ace,carriage\rreturn\n  leading space,trailing space  ,t\tab\n\"leading quotes,trailing quotes\",middle\"quotes\n" -quote X
 
 # -quoting
-t "-quoting none" $rows "" -quoting none
-t "-quoting all" $rows "" -quoting all
-t "-quoting minimal" $rows "" -quoting minimal
-t "-quoting nonnumeric" $rows "" -quoting nonnumeric
-err "-quoting none error if escape undefined" {{a,b c} {d e}} "" -quoting none
-t "-quoting none -escape" {{a,b c} {d e}} "" -escape \\ -quoting none
+t "-quoting none" $rows "a,b c,\n,1,deli\\,miter\nesc\\\\ape,,1e10\nnew\\\nline,sp ace,carriage\rreturn\n  leading space,trailing space  ,t\tab\n\"leading quotes,trailing quotes\",middle\"quotes\n" -quoting none -escape \\
+t "-quoting all" $rows "\"a\",\"b c\",\"\"\n\"\",\"1\",\"deli,miter\"\n\"esc\\ape\",\"\",\"1e10\"\n\"new\nline\",\"sp ace\",\"carriage\rreturn\"\n\"  leading space\",\"trailing space  \",\"t\tab\"\n\"\"\"leading quotes\",\"trailing quotes\"\"\",\"middle\"\"quotes\"\n" -quoting all
+t "-quoting minimal" $rows "a,b c,\n,1,\"deli,miter\"\nesc\\ape,,1e10\n\"new\nline\",sp ace,carriage\rreturn\n  leading space,trailing space  ,t\tab\n\"\"\"leading quotes\",\"trailing quotes\"\"\",\"middle\"\"quotes\"\n" -quoting minimal
+t "-quoting nonnumeric" $rows "\"a\",\"b c\",\"\"\n\"\",1,\"deli,miter\"\n\"esc\\ape\",\"\",1e10\n\"new\nline\",\"sp ace\",\"carriage\rreturn\"\n\"  leading space\",\"trailing space  \",\"t\tab\"\n\"\"\"leading quotes\",\"trailing quotes\"\"\",\"middle\"\"quotes\"\n" -quoting nonnumeric
+err "-quoting none error if escape undefined" {{a,b c} {d e}} "An escape character must be specified if quoting is disabled." -quoting none
+t "-quoting none -escape" {{a,b c} {d e}} "a\\,b,c\nd,e\n" -escape \\ -quoting none
 
 # Escape character
 badoptval -escape AA
 badoptval -escape \x80
-t "-escape \\" [list [list a,b,c\n] [list d e]] "a\\,b\\,c\\\n\n\\d,\\ei\n" -escape \\ -quoting none
-t "-escape ^" [list [list a,b,c\n] [list d e]] "a^,b^,c^\n\n^d,^e\n" -escape ^ -quoting none
-t "-escape X -quoting none" $rows "" -escape X -doublequote false
+t "-escape \\" [list [list a,b,c\n] [list d e]] "a\\,b\\,c\\\n\nd,e\n" -escape \\ -quoting none
+t "-escape ^" [list [list a,b,c\n] [list d e]] "a^,b^,c^\n\nd,e\n" -escape ^ -quoting none
+t "-escape X -quoting none" $rows "a,b c,\n,1,deliX,miter\nesc\\ape,,1e10\nnewX\nline,sp ace,carriage\rreturn\n  leading space,trailing space  ,t\tab\n\"leading quotes,trailing quotes\",middle\"quotes\n" -escape X -quoting none
 
 # -doublequote
 badoptval -doublequote ""
@@ -89,15 +106,18 @@ t "-doublequote true" [list [list a "b\"c"] [list d]]  "a,\"b\"\"c\"\nd\n" -doub
 # The following test requires some explanation. When -doublequote is false,
 # the first " matches the one following b and encloses the string b. Subsequent
 # " characters do NOT enclose a string and are treated as they are.
-t "-doublequote false" [list [list a "b\"c\""] [list d]] "a,\"b\"\"c\"\nd\n" -doublequote false
-err "-doublequote false" $rows "" -doublequote false
-t "-doublequote false" $rows "" -doublequote false -escape X
+t "-doublequote false" [list [list a "b\"c\""] [list d]] "a,\"b\\\"c\\\"\"\nd\n" -doublequote false -escape \\
+err "-doublequote false" $rows "An escape character must be specified if doubling of quotes is disabled." -doublequote false
+t "-doublequote false" $rows "a,b c,\n,1,\"deli,miter\"\nesc\\ape,,1e10\n\"new\nline\",sp ace,carriage\rreturn\n  leading space,trailing space  ,t\tab\n\"X\"leading quotes\",\"trailing quotesX\"\",\"middleX\"quotes\"\n" -doublequote false -escape X
 
-t "-dialect excel" $rows "" {-dialect {*}[tclcsv::dialect excel]}
-t "-dialect excel-tab" $rows "" {-dialect {*}[tclcsv::dialect excel-tab]}
-# Following from Python, not sure if the tests are correct
-t "-escape \\ -quoting minimal -doublequote false" \" "\\\"" -escape \\ -quoting minimal -doublequote false
-t "-escape \\ -quoting none" \" "\\\"" -escape \\ -quoting none
+t "-dialect excel" $rows "a,b c,\n,1,\"deli,miter\"\nesc\\ape,,1e10\n\"new\nline\",sp ace,carriage\rreturn\n  leading space,trailing space  ,t\tab\n\"\"\"leading quotes\",\"trailing quotes\"\"\",\"middle\"\"quotes\"\n" {*}[tclcsv::dialect excel write]
+t "-dialect excel-tab" $rows "a\tb c\t\n\t1\tdeli,miter\nesc\\ape\t\t1e10\n\"new\nline\"\tsp ace\tcarriage\rreturn\n  leading space\ttrailing space  \t\"t\tab\"\n\"\"\"leading quotes\"\t\"trailing quotes\"\"\"\t\"middle\"\"quotes\"\n" {*}[tclcsv::dialect excel-tab write]
+
+# Following differ from Python, not sure who is more correct
+# Python return \", we return "\""
+t "-escape \\ -quoting minimal -doublequote false" [list [list \"]] "\"\\\"\"\n" -escape \\ -quoting minimal -doublequote false
+# Python returns \", we return " since quoting is off no escaping needed as " is not special
+t "-escape \\ -quoting none" [list [list \"]] "\"\n" -escape \\ -quoting none
 
 
 # TBD - size tests (large fields/lines)
