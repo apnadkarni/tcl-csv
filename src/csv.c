@@ -1813,7 +1813,7 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
     char *src, *dst, *p, *end;
     int slen, dlen;
     char lineterminator1, lineterminator2, delimiter, quotechar, escapechar;
-    int need_quotes;
+    int need_quotes = 0; /* Init just to keep gcc happy */
 
     src = Tcl_GetStringFromObj(cell, &slen);
     end = src + slen;

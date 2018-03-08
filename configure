@@ -8443,7 +8443,6 @@ $as_echo "${TCLSH_PROG}" >&6; }
     vars="
     src/csv.tcl
     src/widgets.tcl
-    src/version.tcl
 "
     for i in $vars; do
 	# check for existence, be strict because it is installed

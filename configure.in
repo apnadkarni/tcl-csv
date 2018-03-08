@@ -40,7 +40,6 @@ TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([
     src/csv.tcl
     src/widgets.tcl
-    src/version.tcl
 ])
 
 AC_DEFINE(USE_TCL_STUBS)
