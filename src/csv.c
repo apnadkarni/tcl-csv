@@ -1506,6 +1506,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
         "-nrows", "-quote", "-quoting",
         "-skipblanklines", "-skipleadingspace", "-skiplines",
         "-startline", "-strict", "-terminator",
+        "-chunksize", /* Undocumented */
         NULL
     };
     enum switches_e {
@@ -1514,6 +1515,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
         CSV_NROWS, CSV_QUOTE, CSV_QUOTING,
         CSV_SKIPBLANKLINES, CSV_SKIPLEADINGSPACE, CSV_SKIPLINES,
         CSV_STARTLINE, CSV_STRICT, CSV_TERMINATOR,
+        CSV_CHUNKSIZE,
     };
     if (objc < 1) {
         Tcl_SetResult(ip, "Syntax error: CHANNEL argument must be specified.", TCL_STATIC);
@@ -1525,7 +1527,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
         return NULL;
 
     parser = parser_new();
-    parser->chunksize = 256*1024; /* TBD - chunksize */
+    parser->chunksize = 10*1024; /* TBD - chunksize */
     parser_init(parser);
     parser_set_default_options(parser);
     parser->chan = chan;
@@ -1541,7 +1543,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             goto error_handler;
         }
         s = Tcl_GetStringFromObj(objv[i+1], &len);
-        if (opt != CSV_DOUBLEQUOTE) {
+        if (opt != CSV_DOUBLEQUOTE && opt != CSV_CHUNKSIZE) {
             s = Tcl_GetStringFromObj(objv[i+1], &len);
             if (len > 0) {
                 if ((! isascii(*s)) ||
@@ -1666,6 +1668,13 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
                                     &parser->num_excluded_fields,
                                     &parser->excluded_fields) != TCL_OK)
                 goto invalid_option_value;
+            break;
+        case CSV_CHUNKSIZE:
+            if (Tcl_GetIntFromObj(ip, objv[i+1], &ival) != TCL_OK)
+                goto invalid_option_value;
+            if (ival <= 0)
+                goto invalid_option_value;
+            parser->chunksize = ival;
             break;
         }
     }
