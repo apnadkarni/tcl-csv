@@ -319,7 +319,7 @@ proc tclcsv::sniff_header {args} {
     }
 }
 
-proc tclcsv::dialect {dialect} {
+proc tclcsv::dialect {dialect {direction read}} {
     variable dialects
     set dialects [dict create]
     dict set dialects excel [list \
@@ -328,11 +328,16 @@ proc tclcsv::dialect {dialect} {
                                  -doublequote 1 \
                                  -skipleadingspace 0]
     dict set dialects excel-tab [dict merge [dict get $dialects excel] [list -delimiter \t]]
-    proc [namespace current]::dialect {dialect} {
+    proc [namespace current]::dialect {dialect {direction read}} {
         variable dialects
-        return [dict get $dialects $dialect]
+        set opts [dict get $dialects $dialect]
+        if {$direction eq "write"} {
+            # Remove options not understood by writes
+            dict unset opts -skipleadingspace
+        }
+        return $opts
     }
-    return [dialect $dialect]
+    return [dialect $dialect $direction]
 }
 
 proc tclcsv::sniff {args} {

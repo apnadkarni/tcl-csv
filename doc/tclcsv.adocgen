@@ -319,13 +319,20 @@ text {
 
 
 text {
-    ((cmddef tclcsv_dialect "dialect _NAME_"))
-    Returns the appropriate values for options to be passed to
-    ((^ tclcsv_csv_read csv_read)) and
-    ((^ tclcsv_reader reader)) for parsing the CSV dialect _NAME_.
+    ((cmddef tclcsv_dialect "dialect _NAME_ ?_DIRECTION_?"))
+    Returns the appropriate values for options 
+    for the CSV dialect _NAME_.
     Currently, _NAME_ must be `excel` or `excel-tab` which correspond
     to the CSV formats supported by Excel. The former uses commas
-    and the latter tabs.
+    and the latter tabs. 
+
+    If _DIRECTION_ is `read` (default), returned options are
+    suitable for passing to
+    ((^ tclcsv_csv_read csv_read)) and
+    ((^ tclcsv_reader reader)). If _DIRECTION_ is `write`
+    the options are suitable for
+    ((^ tclcsv_csv_write csv_write)).
+    
 } shell {
     tclcsv::dialect excel
 }
