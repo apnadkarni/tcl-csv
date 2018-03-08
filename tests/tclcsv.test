@@ -39,11 +39,12 @@ proc reader_test_n {fd args} {
     }
 }
 proc badoptval {opt arg} {
-    tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -result "Invalid value for option $opt." -returnCodes error
+    set msg "^(Invalid value for option $opt.)|(Only ASCII characters permitted for option $opt.)\$"
+    tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan {aa}\]" -body "tclcsv::csv_read [list $opt] [list $arg] \$fd" -cleanup "close \$fd" -match regexp -result $msg -returnCodes error
     if {$opt eq "-nrows"} {
         tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Option -nrows is not valid in this mode." -returnCodes error
     } else {
-        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -result "Invalid value for option $opt." -returnCodes error
+        tcltest::test tclcsv-badoptval-[incr ::testnum] "Test invalid argument $opt $arg (reader)" -setup "set fd \[makechan {aa}\]" -body "reader_test \$fd [list $opt] [list $arg]" -cleanup "close \$fd" -match regexp -result $msg -returnCodes error
     }
 }
 

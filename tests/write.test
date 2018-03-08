@@ -13,7 +13,7 @@ proc makechan {} {
 }
 
 proc badoptval {opt arg} {
-    tcltest::test write-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan\]" -body "tclcsv::csv_write [list $opt] [list $arg] \$fd {}" -cleanup "close \$fd" -match regexp -result "^(Invalid value for option $opt.)|(Only ASCII characters permitted for option $opt.)$" -returnCodes error
+    tcltest::test write-badoptval-[incr ::testnum] "Test invalid argument $opt $arg" -setup "set fd \[makechan\]" -body "tclcsv::csv_write [list $opt] [list $arg] \$fd {}" -cleanup "close \$fd" -match regexp -result "^(Invalid value for option $opt.)|(Only ASCII characters permitted for option $opt.)\$" -returnCodes error
 }
 
 proc missingoptval {opt} {
