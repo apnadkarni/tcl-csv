@@ -12,8 +12,8 @@ BSD
    Heavily adapted for tclcsv/Tcl
 */
 
-#ifndef _TACSV_H
-#define _TACSV_H_
+#ifndef _TCLCSV_H
+#define _TCLCSV_H_
 
 #include <stdio.h>
 #include <string.h>
@@ -49,25 +49,7 @@ BSD
 # define CSV_NOFAIL(expr, val) do { (void) (expr) ; } while (0)
 #endif
 
-#define CHUNKSIZE 1024*256
-#define KB 1024
-#define MB 1024 * KB
-#define STREAM_INIT_SIZE 32
-
 #define REACHED_EOF 1
-#define CALLING_READ_FAILED 2
-
-#ifndef P_INLINE
-  #if defined(__GNUC__)
-    #define P_INLINE __inline__
-  #elif defined(_MSC_VER)
-    #define P_INLINE
-  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    #define P_INLINE inline
-  #else
-    #define P_INLINE
-  #endif
-#endif
 
 
 /* #define VERBOSE */
@@ -86,13 +68,6 @@ BSD
  *  XXX Might want to couple count_rows() with read_rows() to avoid duplication
  *      of some file I/O.
  */
-
-/*
- *  WORD_BUFFER_SIZE determines the maximum amount of non-delimiter
- *  text in a row.
- */
-#define WORD_BUFFER_SIZE 4000
-
 
 typedef enum {
     START_RECORD,
@@ -203,4 +178,5 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
                  int objc, Tcl_Obj *const objv[]);
 int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
                  int objc, Tcl_Obj *const objv[]);
-#endif // _PARSER_COMMON_H_
+
+#endif // _TCLCSV_H_
