@@ -653,6 +653,12 @@ text {
 text {
     == Version history
 
+    .Version 2.3
+
+    * Added csv_write for writing.
+
+    * 40% faster parsing.
+
     .Version 2.2
 
     * Modify `dialectpicker` to accept either a file path or a channel
