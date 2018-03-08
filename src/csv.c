@@ -1541,6 +1541,16 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             goto error_handler;
         }
         s = Tcl_GetStringFromObj(objv[i+1], &len);
+        if (opt != CSV_DOUBLEQUOTE) {
+            s = Tcl_GetStringFromObj(objv[i+1], &len);
+            if (len > 0) {
+                if ((! isascii(*s)) ||
+                    (len > 1 && ! isascii(s[1]))) {
+                    Tcl_AppendResult(ip, "Only ASCII characters permitted for option ", Tcl_GetString(objv[i]), ".", NULL);
+                    return NULL;
+                }
+            }
+        }
 
         switch ((enum switches_e) opt) {
         case CSV_COMMENT:
@@ -2019,11 +2029,20 @@ int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
             != TCL_OK)
             return TCL_ERROR;
 
-        if ((i+1) >= (objc-1)) {
+        if ((i+1) >= (objc-2)) {
             Tcl_SetResult(ip, "Missing value for option.", TCL_STATIC);
             return TCL_ERROR;
         }
-        s = Tcl_GetStringFromObj(objv[i+1], &len);
+        if (opt != CSV_DOUBLEQUOTE) {
+            s = Tcl_GetStringFromObj(objv[i+1], &len);
+            if (len > 0) {
+                if ((! isascii(*s)) ||
+                    (len > 1 && ! isascii(s[1]))) {
+                    Tcl_AppendResult(ip, "Only ASCII characters permitted for option ", Tcl_GetString(objv[i]), ".", NULL);
+                    return TCL_ERROR;
+                }
+            }
+        }
         switch ((enum switches_e) opt) {
         case CSV_DELIMITER:
             if (len != 1)
