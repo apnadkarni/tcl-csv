@@ -27,12 +27,34 @@ PRJ_OBJS = \
 
 PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS
 
-# Define the standard targets
+# We do not use the standard predefined install targets because we want
+# to load binaries from platform-specific subdirectories of the package
+# directory.
+DISABLE_TARGET_install = 1
 !include "$(_RULESDIR)\targets.vc"
 
-# Project specific targets
+# Override binary installation directory
+!if "$(ARCH)" == "AMD64"
+BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\win32-x86_64
+!else
+BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\win32-ix86
+!endif
+install: pkgindex
+	@echo Installing to '$(SCRIPT_INSTALL_DIR)'
+	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
+	@if not exist "$(BIN_INSTALL_DIR)" mkdir "$(BIN_INSTALL_DIR)"
+	@$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
+	@$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(DOCDIR)\README "$(SCRIPT_INSTALL_DIR)"
 
-install:    default-install-demos
-pkgindex:   default-pkgindex-tea
+pkgindex: $(OUT_DIR)\pkgIndex.tcl
+$(OUT_DIR)\pkgIndex.tcl: pkgIndex.tcl.template
+	nmakehlp -s << pkgIndex.tcl.template > $(OUT_DIR)\pkgIndex.tcl
+@PACKAGE_VERSION@    $(DOTVERSION)
+@PACKAGE_NAME@       $(PRJ_PACKAGE_TCLNAME)
+@PACKAGE_TCLNAME@    $(PRJ_PACKAGE_TCLNAME)
+@PKG_LIB_FILE@       $(PRJLIBNAME)
+<<
 
 
