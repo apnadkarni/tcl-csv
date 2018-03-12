@@ -46,7 +46,8 @@ install: pkgindex
 	@$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
 	@$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
-	@$(CPY) $(DOCDIR)\README "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(DOCDIR)\README.md "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(_ROOTDIR)\license.terms "$(SCRIPT_INSTALL_DIR)"
 
 pkgindex: $(OUT_DIR)\pkgIndex.tcl
 $(OUT_DIR)\pkgIndex.tcl: pkgIndex.tcl.template

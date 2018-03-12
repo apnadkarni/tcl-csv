@@ -14,6 +14,11 @@
 makefile = native
 **.cmd = native
 **.bat = native
+license.terms = native
+
+configure = BIN
+configure.in = BIN
+
 **.exe = BIN
 **.dll = BIN
 **.kit = BIN
