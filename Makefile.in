@@ -233,7 +233,7 @@ $(PKG_LIB_FILE): $(PKG_OBJECTS)
 #========================================================================
 
 # I added leading $(srcdir) because autoconf 2.53 strips it off
-VPATH = $(srcdir):$(srcdir)/src
+VPATH = $(srcdir):$(srcdir)/generic
 
 .SUFFIXES: .c .$(OBJEXT)
 

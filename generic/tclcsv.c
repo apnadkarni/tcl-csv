@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Ashok P. Nadkarni
+ * Copyright (c) 2015-2023, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file license.terms for license
@@ -41,9 +41,9 @@ CSVClassRelease(ClientData clientData)
 
 static int
 CSVParserNext(CSVParser *csvPtr, Tcl_Interp *interp,
-	      int objc, Tcl_Obj* CONST* objv)
+	      int objc, Tcl_Obj* const* objv)
 {
-    int nrows, nread;
+    Tcl_Size nrows, nread;
     parser_t *parser = csvPtr->parser;
 
     if (objc > 3) {
@@ -52,7 +52,7 @@ CSVParserNext(CSVParser *csvPtr, Tcl_Interp *interp,
     }
     nrows = 1;
     if (objc == 3) {
-	if (Tcl_GetIntFromObj(interp, objv[2], &nrows) != TCL_OK) {
+	if (Tcl_GetSizeIntFromObj(interp, objv[2], &nrows) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	if (nrows <= 0) {
@@ -108,10 +108,10 @@ CSVParserNext(CSVParser *csvPtr, Tcl_Interp *interp,
 
 static int
 CSVInstanceCmd(ClientData clientData, Tcl_Interp *interp,
-	       int objc, Tcl_Obj* CONST* objv)
+	       int objc, Tcl_Obj* const* objv)
 {
     CSVParser *csvPtr = (CSVParser *) clientData;
-    static CONST char *cmdNames[] = {
+    static const char *cmdNames[] = {
 	"destroy", "eof", "methods", "next"
     };
     enum cmds {
@@ -169,8 +169,8 @@ CSVInstanceCmd(ClientData clientData, Tcl_Interp *interp,
 }
 
 static int
-CSVParserNew(CONST char *name, Tcl_Interp *interp,
-	     int objc, Tcl_Obj* CONST* objv)
+CSVParserNew(const char *name, Tcl_Interp *interp,
+	     int objc, Tcl_Obj* const* objv)
 {
     CSVParser *csvPtr;
     Tcl_Obj *fqn;
@@ -238,10 +238,10 @@ CSVParserNew(CONST char *name, Tcl_Interp *interp,
 
 static int
 CSVClassCmd(ClientData clientData, Tcl_Interp *interp,
-	    int objc, Tcl_Obj* CONST* objv)
+	    int objc, Tcl_Obj* const* objv)
 {
     CSVClass *clsPtr = (CSVClass *) clientData;
-    static CONST char *cmdNames[] = {
+    static const char *cmdNames[] = {
 	"create", "methods", "new"
     };
     enum cmds {

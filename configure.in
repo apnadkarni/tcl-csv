@@ -32,14 +32,14 @@ TEA_PROG_TCLSH
 #-----------------------------------------------------------------------
 
 TEA_ADD_SOURCES([
-    src/csv.c
-    src/tclcsv.c
+    generic/csv.c
+    generic/tclcsv.c
 ])
-TEA_ADD_CFLAGS([])
+TEA_ADD_CFLAGS([-DTCL_NO_DEPRECATED])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([
-    src/csv.tcl
-    src/widgets.tcl
+    library/csv.tcl
+    library/widgets.tcl
 ])
 
 AC_DEFINE(USE_TCL_STUBS)

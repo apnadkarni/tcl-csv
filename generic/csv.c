@@ -84,11 +84,11 @@ void parser_set_default_options(parser_t *self)
     self->skip_footer = 0;
 }
 
-static int parse_field_indices(Tcl_Obj *o, int *pnindices, char **ppindices)
+static int parse_field_indices(Tcl_Obj *o, Tcl_Size *pnindices, char **ppindices)
 {
     char *pindices = NULL;
     Tcl_Obj **objs;
-    int i, imax, nobjs;
+    Tcl_Size i, imax, nobjs;
 
     /*
      * List of indices is unsorted and may contain duplicates.
@@ -242,7 +242,7 @@ static int end_field(parser_t *self)
 
 static int end_line(parser_t *self)
 {
-    int fields;
+    Tcl_Size fields;
 
 #ifndef TBD
 
@@ -1395,7 +1395,7 @@ static int parser_handle_eof(parser_t *self)
                 return -1;
         } else if (self->state == IN_QUOTED_FIELD) {
             set_error(self,
-                      Tcl_ObjPrintf("CSV parse error: EOF inside string starting at line %d",
+                      Tcl_ObjPrintf("CSV parse error: EOF inside string starting at line %" TCL_SIZE_MODIFIER "d",
                                     self->file_lines));
             return -1;
         }
@@ -1510,7 +1510,8 @@ int tokenize_all_rows(parser_t *self)
 parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pnrows)
 {
     parser_t *parser;
-    int i, mode, opt, len, ival, nrows;
+    int i, mode, opt, ival, nrows;
+    Tcl_Size len;
     char *s;
     int res;
     Tcl_Obj **objs;
@@ -1623,7 +1624,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             if (res != TCL_OK)
                 goto error_handler;
             else {
-                int j;
+                Tcl_Size j;
                 Tcl_WideInt wval;
                 for (j = 0; j < len; ++j) {
                     res = Tcl_GetWideIntFromObj(ip, objs[j], &wval);
@@ -1811,7 +1812,7 @@ static int csv_numeric(const char *s)
 static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_config *config)
 {
     char *src, *dst, *p, *end;
-    int slen, dlen;
+    Tcl_Size slen, dlen;
     char lineterminator1, lineterminator2, delimiter, quotechar, escapechar;
     int need_quotes = 0; /* Init just to keep gcc happy */
 
@@ -1930,7 +1931,7 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
 static int csv_write(Tcl_Interp *ip, Tcl_Channel chan, Tcl_Obj *rowObj, struct csv_write_config *config)
 {
     Tcl_Obj **rows, **cells;
-    int r, c, nrows, ncells, len;
+    Tcl_Size r, c, nrows, ncells, len;
     Tcl_DString ds;
 
     Tcl_DStringInit(&ds);
@@ -2047,7 +2048,8 @@ int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
 
     csv_write_config_init(&config);
     for (i = 1; i < objc-2; i += 2) {
-        int opt, len;
+        int opt;
+        Tcl_Size len;
         char *s;
 	if (Tcl_GetIndexFromObj(ip, objv[i], switches, "option", 0, &opt)
             != TCL_OK)

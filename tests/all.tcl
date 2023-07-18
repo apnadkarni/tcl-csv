@@ -1,4 +1,3 @@
-package require Tcl 8.6
 package require tcltest 2.2
 
 # Test configuration options that may be set are:

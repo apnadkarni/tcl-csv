@@ -29,6 +29,16 @@ BSD
 #include "tcl.h"
 #include "khash.h"
 
+#if TCL_MAJOR_VERSION > 8 || (TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION > 6)
+#define USE_TCL87_API 1
+#endif
+
+#ifndef USE_TCL87_API
+typedef int Tcl_Size;
+#define TCL_SIZE_MODIFIER ""
+#define Tcl_GetSizeIntFromObj Tcl_GetIntFromObj
+#endif
+
 #if CSV_ENABLE_ASSERT
 #  if CSV_ENABLE_ASSERT == 1
 #    define CSV_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
@@ -98,16 +108,16 @@ typedef struct parser_t {
     int chunksize;  // Number of bytes to prepare for each chunk
     Tcl_Obj *dataObj; // Tcl_Obj where data is read from channel
     char *data;     // Points into dataObj (data to be processed)
-    int datalen;    // amount of data available
-    int datapos;
+    Tcl_Size datalen;    // amount of data available
+    Tcl_Size datapos;
 
     // Tcl_Obj containing the read rows
     Tcl_Obj *rowsObj; // List of built rows
     Tcl_Obj *rowObj;  // The row being built
     Tcl_Obj *fieldObj; // The field being built
 
-    int lines;            // Number of (good) lines observed
-    int file_lines;       // Number of file lines observed (including bad or skipped)
+    Tcl_Size lines;            // Number of (good) lines observed
+    Tcl_Size file_lines;       // Number of file lines observed (including bad or skipped)
 
     /*
      * Caller can specify which fields are to be included / excluded.
@@ -116,10 +126,10 @@ typedef struct parser_t {
      * boolean (char) arrays indexed by field index.
      */
     char *included_fields;      /* If NULL, all included */
-    int  num_included_fields;   /* Size of included_fields */
+    Tcl_Size  num_included_fields;   /* Size of included_fields */
     char *excluded_fields;      /* If NULL, no exclusions */
-    int  num_excluded_fields;   /* Size of excluded_fields */
-    int  field_index;           /* Index of current field being parsed */
+    Tcl_Size  num_excluded_fields;   /* Size of excluded_fields */
+    Tcl_Size  field_index;           /* Index of current field being parsed */
 
 
     // Tokenizing stuff
