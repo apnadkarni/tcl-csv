@@ -16,16 +16,13 @@
 #
 PROJECT = tclcsv
 
-GENERICDIR = ..\src
-LIBDIR     = ..\src
-
 !include "rules-ext.vc"
 
 PRJ_OBJS = \
 	$(TMP_DIR)\tclcsv.obj  \
-	$(TMP_DIR)\csv.obj  
+	$(TMP_DIR)\csv.obj
 
-PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS
+PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -DTCL_NO_DEPRECATED
 
 # We do not use the standard predefined install targets because we want
 # to load binaries from platform-specific subdirectories of the package
@@ -39,6 +36,7 @@ BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\win32-x86_64
 !else
 BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\win32-ix86
 !endif
+
 install: pkgindex
 	@echo Installing to '$(SCRIPT_INSTALL_DIR)'
 	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
