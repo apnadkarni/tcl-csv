@@ -10,7 +10,7 @@
    Low-level ascii-file processing from pandas. Combines some elements from
    Python's built-in csv module and Warren Weckesser's textreader project on
    GitHub. See Python Software Foundation License and BSD licenses for these.
-   
+
   Modifications for tclcsv (c) 2016 by Ashok P. Nadkarni. See license.terms.
 
 */
@@ -202,7 +202,7 @@ static int end_field(parser_t *self)
     int included;
 
     /*
-     * If there is any data in our output buffer, copy it to 
+     * If there is any data in our output buffer, copy it to
      * the field object
      */
     if (self->field_buf_index != 0) {
@@ -398,7 +398,7 @@ int parser_set_skipfirstnrows(parser_t *self, int64_t nrows)
 
 static int parser_buffer_bytes(parser_t *self, size_t nbytes)
 {
-    int chars_read;
+    Tcl_Size chars_read;
 
     self->datapos = 0;
     if (self->dataObj == NULL)
@@ -492,7 +492,7 @@ int skip_this_line(parser_t *self, int64_t linenum) {
 
 int tokenize_delimited(parser_t *self, size_t line_limit)
 {
-    int i, start_lines;
+    Tcl_Size i, start_lines;
     char c;
     char *buf = self->data + self->datapos;
 
@@ -814,7 +814,7 @@ linelimit:
 int tokenize_delim_customterm(parser_t *self, size_t line_limit)
 {
 
-    int i, start_lines;
+    Tcl_Size i, start_lines;
     char c;
     char *buf = self->data + self->datapos;
 
@@ -1066,7 +1066,7 @@ linelimit:
 
 int tokenize_whitespace(parser_t *self, size_t line_limit)
 {
-    int i, start_lines;
+    Tcl_Size i, start_lines;
     char c;
     char *buf = self->data + self->datapos;
 
@@ -1441,7 +1441,7 @@ int _tokenize_helper(parser_t *self, size_t nrows, int all)
     parser_op tokenize_bytes;
 
     int status = 0;
-    int start_lines = self->lines;
+    Tcl_Size start_lines = self->lines;
 
     if (self->delim_whitespace) {
         tokenize_bytes = tokenize_whitespace;
@@ -1459,7 +1459,7 @@ int _tokenize_helper(parser_t *self, size_t nrows, int all)
            (int) nrows, self->datapos, self->datalen));
 
     while (1) {
-        if (!all && self->lines - start_lines >= nrows)
+        if (!all && self->lines - start_lines >= (Tcl_Size)nrows)
             break;
 
         if (self->datapos == self->datalen) {
@@ -1601,7 +1601,7 @@ parser_t *parser_create(Tcl_Interp *ip, int objc, Tcl_Obj *const objv[], int *pn
             parser->quotechar = *s;
             break;
         case CSV_QUOTING:
-            /* 
+            /*
              * NOTE: this is currently undocumented because for readers,
              * it does not seem to have any effect beyond what is already
              * provided for by the -quote option where -quote "" works
@@ -1763,14 +1763,14 @@ static int csv_numeric(const char *s)
 {
     const char *p = s;
     double dval;
-        
+
     /*
      * TBD - not sure if this is faster than using standard conversion
      * routines but note that numerics include integers and decimals of
      * arbitrary length but not hexadecimals.
      */
 
-    
+
     if (*p == '\0')
         return 0;               /* empty string */
     else if (*p == '+' || *p == '-') {
@@ -1780,13 +1780,13 @@ static int csv_numeric(const char *s)
     }
 
     CSV_ASSERT(*p != '\0');
-    
+
     while (*p) {
         if (! isascii(*p) || !isdigit(*p))
             break;
         ++p;
     }
-    
+
     if (*p == '\0')
         return 1;               /* Integer of arbitrary length */
 
@@ -1820,7 +1820,7 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
     end = src + slen;
     dlen = Tcl_DStringLength(ds);
 
-    /* 
+    /*
      * We do not want to keep checking for destination space so make sure
      * the DString has enough space to begin with. The max length would be
      * length of source string plus possibly two bytes for leading and trailing
@@ -1828,7 +1828,7 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
      * which in worst case is entire source string.
      */
     Tcl_DStringSetLength(ds, dlen + 1 + slen + slen + 1);
-    
+
     /* Get pointer to string AFTER above since DString might be reallocated */
     dst = Tcl_DStringValue(ds);
     dst += dlen;
@@ -1865,7 +1865,7 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
 
     if (need_quotes)
         *dst++ = quotechar;
-    
+
     if (p == NULL) {
         /* No special chars. Just copy everything over */
         strncpy(dst, src, slen);
@@ -1877,10 +1877,10 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
         Tcl_DStringSetLength(ds, dst - p);
         return;
     }
-        
+
     /* Copy the characters before the first special char */
     if (p != NULL) {
-        int len = p - src;
+        ptrdiff_t len = p - src;
         strncpy(dst, src, len);
         dst += len;
         src += len;
@@ -1936,15 +1936,15 @@ static int csv_write(Tcl_Interp *ip, Tcl_Channel chan, Tcl_Obj *rowObj, struct c
 
     Tcl_DStringInit(&ds);
 
-    /* 
-     * Quoting is turned off either via quotechar being empty or 
+    /*
+     * Quoting is turned off either via quotechar being empty or
      * quoting policy being QUOTE_NONE.
      */
     if (config->quotechar == '\0')
         config->quoting = QUOTE_NONE;
     else if (config->quoting == QUOTE_NONE)
         config->quotechar = '\0';
-        
+
     if (config->escapechar == '\0') {
         /* No escape char specified. Must allow quoting then for delimiters */
         if (config->quoting == QUOTE_NONE) {
@@ -1956,11 +1956,11 @@ static int csv_write(Tcl_Interp *ip, Tcl_Channel chan, Tcl_Obj *rowObj, struct c
             return TCL_ERROR;
         }
     }
-    
+
     if (Tcl_ListObjGetElements(ip, rowObj, &nrows, &rows) != TCL_OK)
         return TCL_ERROR;
 
-    /* 
+    /*
      * Construct list of characters that are special based on settings.
      * Really used in csv_format_cell but we do it here as to avoid repeating
      * the initialization within the loop.
@@ -1998,7 +1998,7 @@ static int csv_write(Tcl_Interp *ip, Tcl_Channel chan, Tcl_Obj *rowObj, struct c
             Tcl_DStringSetLength(&ds, 0);
         }
     }
-    
+
     /* Write any remaining bytes */
     len = Tcl_DStringLength(&ds);
     if (len > 0) {
@@ -2033,7 +2033,7 @@ int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
     };
     struct csv_write_config config;
     Tcl_Channel chan;
-    
+
     if (objc < 3) {
         Tcl_WrongNumArgs(ip, 1, objv, "?options? CHANNEL ROWS");
         return TCL_ERROR;
@@ -2109,7 +2109,7 @@ int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
             config.doublequote = ival;
             break;
         }
-    } 
+    }
 
     return csv_write(ip, chan, objv[objc-1], &config);
 
