@@ -1,0 +1,31 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "d:/tcl/90/x64-debug/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "BUILD_cffi",
+                "IOCP_ENABLE_ASSERT",
+                "PACKAGE_NAME=\"cffi\"",
+                "PACKAGE_VERSION=\"0.1\"",
+                "TCLH_IMPL",
+                "TCLH_EMBEDDER=\"CFFI\"",
+                "CFFI_USE_DYNCALL",
+                "CFFI_USE_TCLLOAD"
+            ],
+            "windowsSdkVersion": "10.0.17763.0",
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.16.27023/bin/Hostx64/x64/cl.exe",
+            "compilerArgs": ["/std:c11"],
+            "cStandard": "c99",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "msvc-x64"
+        }
+    ],
+    "version": 4
+}
