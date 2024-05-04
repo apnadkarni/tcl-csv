@@ -85,8 +85,16 @@ pkgincludedir	= $(includedir)/$(PKG_DIR)
 
 top_builddir	= .
 
+INSTALL_STRIP_PROGRAM	= strip
+INSTALL_STRIP_LIBRARY	= strip -x
+
+INSTALL_OPTIONS	=
+INSTALL		= @INSTALL@ $(INSTALL_OPTIONS)
+
 INSTALL		= @INSTALL@
 INSTALL_PROGRAM	= @INSTALL_PROGRAM@
+INSTALL_LIBRARY	= @INSTALL_LIBRARY@
+INSTALL_DATA_DIR = ${INSTALL} -d -m 755
 INSTALL_DATA	= @INSTALL_DATA@
 INSTALL_SCRIPT	= @INSTALL_SCRIPT@
 
@@ -116,6 +124,9 @@ TCL_BIN_DIR	= @TCL_BIN_DIR@
 # Not used by sample, but retained for reference of what Tcl required
 TCL_LIBS	= @TCL_LIBS@
 
+# Non-standard - added so DLL can go into arch-specific subdir (Windows-only)
+MACHINE         = @MACHINE@
+
 #========================================================================
 # TCLLIBPATH seeds the auto_path in Tcl's init.tcl so we can test our
 # package without installing.  The other environment variables allow us
@@ -127,11 +138,13 @@ EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR)
 TCLSH_ENV	= TCL_LIBRARY=`@CYGPATH@ $(TCL_SRC_DIR)/library` \
 		  @LD_LIBRARY_PATH_VAR@="$(EXTRA_PATH):$(@LD_LIBRARY_PATH_VAR@)" \
 		  PATH="$(EXTRA_PATH):$(PATH)" \
-		  TCLLIBPATH="$(srcdir)/library"
+		  TCLLIBPATH="."
 TCLSH_PROG	= @TCLSH_PROG@
 WISH_PROG	= @WISH_PROG@
 TCLSH		= $(TCLSH_ENV) $(TCLSH_PROG)
 WISH		= $(TCLSH_ENV) $(WISH_PROG)
+
+SHARED_BUILD	= @SHARED_BUILD@
 
 # The local includes must come first, because the TK_XINCLUDES can be
 # just a comment
@@ -176,10 +189,13 @@ binaries: $(BINARIES)
 libraries:
 
 install: all install-binaries install-libraries
+install-strip:
+	$(MAKE) install \
+		INSTALL_PROGRAM="STRIPPROG='${INSTALL_STRIP_PROGRAM}' $(INSTALL_PROGRAM) -s" \
+		INSTALL_LIBRARY="STRIPPROG='${INSTALL_STRIP_LIBRARY}' $(INSTALL_LIBRARY) -s"
 
 install-binaries: binaries install-lib-binaries install-bin-binaries
 	@mkdir -p $(DESTDIR)$(pkglibdir)
-	$(INSTALL_DATA) pkgIndex.tcl $(DESTDIR)$(pkglibdir)
 	@list='$(PKG_EXTRA_FILES)'; for p in $$list; do \
 	  if test -f $(srcdir)/$$p; then \
 	    destp=`basename $$p`; \
@@ -195,9 +211,8 @@ install-binaries: binaries install-lib-binaries install-bin-binaries
 install-libraries: libraries
 
 test: binaries libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) \
-	    -load "package ifneeded $(PACKAGE_NAME) $(PACKAGE_VERSION) \
-		[list load `@CYGPATH@ $(PKG_LIB_FILE)` $(PACKAGE_NAME)]"
+	@cp $(srcdir)/library/*.tcl .
+	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS) 
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)
@@ -271,19 +286,29 @@ distclean: clean
 #========================================================================
 
 install-lib-binaries:
-	@mkdir -p $(DESTDIR)$(pkglibdir)
+	@$(INSTALL_DATA_DIR) "$(DESTDIR)$(pkglibdir)"
+	@$(INSTALL_DATA) $(srcdir)/LICENSE "$(DESTDIR)$(pkglibdir)"
 	@list='$(lib_BINARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
-	    echo " $(INSTALL_PROGRAM) $$p $(DESTDIR)$(pkglibdir)/$$p"; \
-	    $(INSTALL_PROGRAM) $$p $(DESTDIR)$(pkglibdir)/$$p; \
-	    echo " $(RANLIB) $(DESTDIR)$(pkglibdir)/$$p"; \
-	    $(RANLIB) $(DESTDIR)$(pkglibdir)/$$p; \
 	    ext=`echo $$p|sed -e "s/.*\.//"`; \
+	    if test "x$(MACHINE)" = "x"; then \
+	        todir="$(DESTDIR)$(pkglibdir)"; \
+	    elif test "x$(MACHINE)" = "xAMD64"; then \
+		todir="$(DESTDIR)$(pkglibdir)/win32-x86_64"; \
+	    elif test "x$(MACHINE)" = "xX86"; then \
+		todir="$(DESTDIR)$(pkglibdir)/win32-ix86"; \
+	    else \
+		todir="$(DESTDIR)$(pkglibdir)/$(MACHINE)"; \
+	    fi; \
+	    echo " $(INSTALL_LIBRARY) $$p $$todir/$$p"; \
+	    $(INSTALL_LIBRARY) $$p "$$todir/$$p"; \
+	    echo " $(RANLIB) $$todir/$$p"; \
+	    $(RANLIB) "$$todir/$$p"; \
 	    if test "x$$ext" = "xdll"; then \
 		lib=`basename $$p|sed -e 's/.[^.]*$$//'`.lib; \
 		if test -f $$lib; then \
-		    echo " $(INSTALL_DATA) $$lib $(DESTDIR)$(pkglibdir)/$$lib"; \
-	            $(INSTALL_DATA) $$lib $(DESTDIR)$(pkglibdir)/$$lib; \
+		    echo " $(INSTALL_DATA) $$lib $$todir/$$lib"; \
+	            $(INSTALL_DATA) $$lib "$$todir/$$lib"; \
 		fi; \
 	    fi; \
 	  fi; \
@@ -295,6 +320,10 @@ install-lib-binaries:
 	    $(INSTALL_DATA) $(srcdir)/$$p $(DESTDIR)$(pkglibdir)/$$destp; \
 	  fi; \
 	done
+	@if test "x$(SHARED_BUILD)" = "x1"; then \
+	    echo " Install pkgIndex.tcl $(DESTDIR)$(pkglibdir)"; \
+	    $(INSTALL_DATA) pkgIndex.tcl "$(DESTDIR)$(pkglibdir)"; \
+	fi
 
 #========================================================================
 # Install binary executables (e.g. .exe files)
