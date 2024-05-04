@@ -11,7 +11,7 @@
 # See TIP 477 (https://core.tcl.tk/tips/doc/trunk/tip/477.md) for
 # detailed documentation.
 # 
-# See the file "license.terms" for information on usage and redistribution
+# See the file "LICENSE" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
 PROJECT = tclcsv
@@ -45,7 +45,7 @@ install: pkgindex
 	@$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
-	@$(CPY) $(ROOT)\license.terms "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
 
 pkgindex: default-pkgindex-tea
 
