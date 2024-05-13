@@ -1,0 +1,39 @@
+name: mac
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-12
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Install Tcl
+      run: |
+        brew update
+        brew install tcl-tk || true
+
+    - name: Configure
+      run: |
+        mkdir build
+        cd build
+        ../configure --with-tcl=/usr/local/opt/tcl-tk/lib
+
+    - name: Make
+      run: |
+        cd build
+        make
+
+    - name: Test
+      run: |
+        cd build
+        make test
+      env:
+        ERROR_ON_FAILURES: 1
+

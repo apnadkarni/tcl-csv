@@ -1,4 +1,4 @@
-package require tcltest 2.2
+package require tcltest
 
 # Test configuration options that may be set are:
 # (currently none)
@@ -15,5 +15,14 @@ if {[info exists env(TEMP)]} {
 }
 
 eval tcltest::configure $argv
-tcltest::runAllTests
-puts "All done."
+set ErrorOnFailures [info exists env(ERROR_ON_FAILURES)]
+# NOTE: Do NOT unset ERROR_ON_FAILURES if recursing to subdirectories
+unset -nocomplain env(ERROR_ON_FAILURES)
+if {[tcltest::runAllTests] && $ErrorOnFailures} {exit 1}
+
+# if calling direct only (avoid rewrite exit if inlined or interactive):
+if { [info exists ::argv0] && [file tail $::argv0] eq [file tail [info script]]
+     && !([info exists ::tcl_interactive] && $::tcl_interactive)
+ } {
+    proc exit args {}
+}

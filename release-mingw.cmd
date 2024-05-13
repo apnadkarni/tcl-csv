@@ -1,6 +1,7 @@
+@echo off
 setlocal
 
-CSVVER=%1
+set CSVVER=%1
 if "x%CSVVER%" == "x" set /P CSVVER="Enter tclcsv version: "
 set TCLROOT=d:/tcl
 set MINGWROOT=c:\msys64
