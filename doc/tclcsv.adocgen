@@ -24,8 +24,7 @@ text {
     reading and writing text files in _Comma Separated Value_ (CSV) format.
 
     [NOTE]
-    The http://tcl.activestate.com/software/tcllib/[tcllib]
-    distribution also has a package `csv` that is capable
+    `Tcllib` also has a package `csv` that is capable
     of reading and writing CSV files. It has the advantage of being
     a pure Tcl package but conversely has much lower performance which
     is an issue only for larger files. It is also a little less flexible
@@ -37,19 +36,12 @@ text {
 text {
     == Downloads and installation
 
-    Prebuilt 32- and 64-bit binaries for Windows are available from
-    http://sourceforge.net/projects/tclcsv/files/. Unzip the distribution
+    Prebuilt 32- and 64-bit Windows binaries for Tcl 8.6 and 9.0 are available
+    from https://sourceforge.net/projects/tclcsv/files/. Unzip the distribution
     into a directory that is included in your Tcl `auto_path`.
     
     For *ix systems, a TEA-compliant source distribution can be downloaded from
-    from the same location. To install, unpack the distribution and
-    in the toplevel directory type
-} syntax {
-    ./configure --with-tcl=__PATH_TO_TCLCONFIG__
-    make install
-} text {
-    where __PATH_TO_TCLCONFIG__ is the full path to the directory
-    containing the `tclConfig.sh` file for your Tcl installation.
+    from the same location.
 }
 
 text {
@@ -624,14 +616,14 @@ text {
 text {
     == Source code
 
-    The source code for the extensions is available from its project
-    page at http://sourceforge.net/projects/tclcsv/.
+    The source code is available from its repository at
+    https://github.com/apnadkarni/tcl-csv.
 }
 
 text {
     == Reporting bugs
 
-    Please report any bugs at http://sourceforge.net/p/tclcsv/tickets/.
+    Report any bugs at https://github.com/apnadkarni/tcl-csv/issues.
 }
 
 text {
@@ -652,6 +644,10 @@ text {
 
 text {
     == Version history
+
+    .Version 2.4
+
+    * Tcl 9 support.
 
     .Version 2.3
 

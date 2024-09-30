@@ -1,20 +1,47 @@
-rmdir/s/q build
+:: Builds release versions
 
-@rem We fire off new shells so as to not change our env
-cmd /c "envset x86 && cd win && nmake /f makefile.vc INSTALLDIR=..\build TCLDIR=d:\tcl\868-vc6\x86 hose && cd .."
-cmd /c "envset x86 && cd win && nmake /f makefile.vc INSTALLDIR=..\build TCLDIR=d:\tcl\868-vc6\x86 tclcsv install && cd .."
-cmd /c "envset x64 && cd win && nmake /f makefile.vc INSTALLDIR=..\build TCLDIR=d:\tcl\868-vc6\x64 hose && cd .."
-cmd /c "envset x64 && cd win && nmake /f makefile.vc INSTALLDIR=..\build TCLDIR=d:\tcl\868-vc6\x64 tclcsv install && cd .."
+setlocal
 
-@rem Extract the version number and build the file name to use
-for /f %%i in ('win\nmakehlp -V configure.in tclcsv') do set TCLCSVVER=%%i
-set TCLCSVFNAME=tclcsv-%TCLCSVVER%
+set package=tclcsv
 
-@rem Windows binaries
-cd build && zip -r %TCLCSVFNAME%.zip tclcsv%TCLCSVVER%  && cd ..
+:: Tcl installations
+set dir90x64=c:\Tcl\9.0.0\x64
+set dir90x86=c:\Tcl\9.0.0\x86
+set dir86x64=c:\Tcl\8.6.10\x64
+set dir86x86=c:\Tcl\8.6.10\x86
 
-@rem --no-decode option because we do not want \r\n in Unix distro
-hg archive build\%TCLCSVFNAME%-src.tar.gz -X ".hg*" --no-decode
-hg archive build\%TCLCSVFNAME%-src.zip -X ".hg*"
+:: Should not have to change anything after this line
 
-set TCLCSVFNAME=
+powershell .\release.ps1 %dir90x64% %~dp0\dist\latest x64
+@if ERRORLEVEL 1 goto error_exit
+
+powershell .\release.ps1 %dir90x86% %~dp0\dist\latest x86
+@if ERRORLEVEL 1 goto error_exit
+
+powershell .\release.ps1 %dir86x64% %~dp0\dist\latest x64
+@if ERRORLEVEL 1 goto error_exit
+
+powershell .\release.ps1 %dir86x86% %~dp0\dist\latest x86
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require %package%] ; exit | %dir90x64%\bin\tclsh90.exe
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require %package%] ; exit | %dir90x86%\bin\tclsh90.exe
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require %package%] ; exit | %dir86x64%\bin\tclsh86t.exe
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require %package%] ; exit | %dir86x86%\bin\tclsh86t.exe
+@if ERRORLEVEL 1 goto error_exit
+
+goto vamoose
+
+:error_exit
+@echo "ERROR: Build failed"
+exit /B 1
+
+:vamoose
+
+

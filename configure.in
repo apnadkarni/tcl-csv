@@ -1,10 +1,10 @@
 #!/bin/bash -norc
 # Configure for
-# 	tclcsv 2.3
+# 	tclcsv
 #
 # Copyright (c) 2016 Ashok P. Nadkarni
 
-AC_INIT([tclcsv],[2.4b0])
+AC_INIT([tclcsv],[2.4.2])
 
 TEA_INIT([3.13])
 
