@@ -15,6 +15,7 @@ BSD
 #ifndef _TCLCSV_H
 #define _TCLCSV_H
 
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
