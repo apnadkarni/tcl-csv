@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2016 Ashok P. Nadkarni
 
-AC_INIT([tclcsv],[2.4.2])
+AC_INIT([tclcsv],[2.4.3])
 
 TEA_INIT([3.13])
 
