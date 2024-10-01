@@ -1874,7 +1874,7 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
             *dst++ = quotechar;
         p = Tcl_DStringValue(ds);
         CSV_ASSERT((dst-p) < Tcl_DStringLength(ds)); /* Assert no buf overflo */
-        Tcl_DStringSetLength(ds, (Tcl_Size) dst - p);
+        Tcl_DStringSetLength(ds, (Tcl_Size) (dst - p));
         return;
     }
 
@@ -1925,7 +1925,7 @@ static void csv_format_cell(Tcl_DString *ds, Tcl_Obj *cell, struct csv_write_con
 
     p = Tcl_DStringValue(ds);
     CSV_ASSERT((dst-p) < Tcl_DStringLength(ds)); /* Assert no buf overflo */
-    Tcl_DStringSetLength(ds, (Tcl_Size) dst - p);
+    Tcl_DStringSetLength(ds, (Tcl_Size) (dst - p));
 }
 
 static int csv_write(Tcl_Interp *ip, Tcl_Channel chan, Tcl_Obj *rowObj, struct csv_write_config *config)

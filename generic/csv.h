@@ -13,7 +13,7 @@ BSD
 */
 
 #ifndef _TCLCSV_H
-#define _TCLCSV_H_
+#define _TCLCSV_H
 
 #include <stdio.h>
 #include <string.h>
@@ -197,4 +197,4 @@ int csv_read_cmd(ClientData clientdata, Tcl_Interp *ip,
 int csv_write_cmd(ClientData clientdata, Tcl_Interp *ip,
                  int objc, Tcl_Obj *const objv[]);
 
-                 #endif /* _TCLCSV_H_ */
+#endif /* _TCLCSV_H */
