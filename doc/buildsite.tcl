@@ -1,6 +1,6 @@
 package require fileutil
 foreach line [fileutil::grep AC_INIT ../configure.in] {
-    if {[regexp {AC_INIT..tclcsv.,.([^\]]+)} $line -> tclcsvversion]} break
+    if {[regexp {AC_INIT..tclcsv.?,.?\[(\d+\.\d+[.ab]\d+)} $line -> tclcsvversion]} break
 }
 set target output
 set adocgen_files {
