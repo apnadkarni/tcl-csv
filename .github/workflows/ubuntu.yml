@@ -2,30 +2,56 @@ name: Ubuntu
 
 on:
   workflow_dispatch:
+    inputs:
+      tcltag:  # User input for selecting Tcl tag
+        description: 'Tcl version'
+        required: true
+        type: choice
+        options:
+          - '["main"]'
+          - '["core-8-6-13"]'
+          - '["core-8-6-13", "main"]'
+        default: '["core-8-6-13", "main"]'
+      osver:  # User input for selecting OS
+        description: 'OS version'
+        required: true
+        type: choice
+        options:
+          - '["ubuntu-latest"]'
+          - '["ubuntu-20.04"]'
+          - '["ubuntu-22.04"]'
+          - '["ubuntu-24.04"]'
+          - '["ubuntu-20.04", "ubuntu-22.04", "ubuntu-24.04"]'
+        default: '["ubuntu-20.04"]'
+      dotest: # Whether tests should be run
+        description: 'Run tests as well'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
     strategy:
       matrix:
-        tclbranch:
-          - core-8-6-13
-          - main
+        os: ${{ fromJSON(github.event.inputs.osver) }}
+        tclbranch: ${{ fromJSON(github.event.inputs.tcltag) }}
+
+    runs-on: ${{ matrix.os }}
     env:
       TCLSUBDIR: ${{ matrix.tclbranch }}
       TCLDIR: /tmp/tcl/${{ matrix.tclbranch }}
 
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+
     - name: Install libtommath
       id: tommath
       run: |
        sudo apt-get update
        sudo apt-get install libtommath-dev
-
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: true
 
     - name: Cache Tcl build
       id: tcl-cache
@@ -64,6 +90,7 @@ jobs:
         make
 
     - name: Test
+      if: github.event.inputs.dotest
       run: |
         cd build
         make test
