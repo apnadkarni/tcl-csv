@@ -9,76 +9,46 @@ jobs:
     strategy:
       matrix:
         include:
-          - {tclbranch: main, sys: mingw64, arch: x86_64}
-          - {tclbranch: main, sys: mingw32, arch: i686}
-          - {tclbranch: core-8-6-13, sys: mingw64, arch: x86_64}
-          - {tclbranch: core-8-6-13, sys: mingw32, arch: i686}
-    env:
-      TCLSUBDIR: ${{ matrix.sys }}-${{ matrix.tclbranch }}
-      TCLDIR: C:/tcl/${{ matrix.sys }}-${{ matrix.tclbranch }}
-      MSYSTCLDIR: /c/tcl/${{ matrix.sys }}-${{ matrix.tclbranch }}
+          - {os: windows-latest, tclbranch: main, arch: mingw64, cpu: x86_64}
+          - {os: windows-latest, tclbranch: main, arch: mingw32, cpu: i686}
+          - {os: windows-latest, tclbranch: core-8-6-13, arch: mingw64, cpu: x86_64}
+          - {os: windows-latest, tclbranch: core-8-6-13, arch: mingw32, cpu: i686}
     defaults:
       run:
         shell: msys2 {0}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: true
 
     - name: Set up msys2
       uses: msys2/setup-msys2@v2
       with:
-        msystem: ${{ matrix.sys }}
+        msystem: ${{ matrix.arch }}
         path-type: minimal
         release: true
         update: false
-        install: mingw-w64-${{matrix.arch}}-gcc make mingw-w64-${{matrix.arch}}-libtommath 
+        install: mingw-w64-${{matrix.cpu}}-gcc make
 
     - name: Verify toolchain
       run: |
         gcc -v
         make -v
 
-    - name: Cache Tcl build
-      id: tcl-cache
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.TCLDIR }}
-        key: ${{ runner.os }}-tcl-${{ env.TCLSUBDIR }}
-
-    - name: Checkout Tcl
-      if: steps.tcl-cache.outputs.cache-hit != 'true'
+    steps:
+    - name: Checkout
       uses: actions/checkout@v4
       with:
-        repository: tcltk/tcl
-        ref: ${{ matrix.tclbranch }}
-        path: tcl-${{ matrix.tclbranch }}
+        submodules: true
 
-    - name: Build Tcl
-      if: steps.tcl-cache.outputs.cache-hit != 'true'
-      working-directory: tcl-${{ matrix.tclbranch }}/win
-      run: |
-        mkdir build
-        cd build
-        ../configure --prefix=${{ env.MSYSTCLDIR }} || (cat config.log && exit 1)
-        make
-        make install
+    - name: Setup Tcl
+      id: tcl-setup-step
+      uses: apnadkarni/tcl-setup@v1
+      with:
+        tcl-osver: ${{ matrix.os }}
+        tcl-branch: ${{ matrix.tclbranch }}
+        tcl-toolchain: 'mingw64'
+        tcl-arch: ${{ matrix.arch }}
 
-    - name: Configure
-      run: |
-        mkdir build
-        cd build
-        ../configure --with-tcl=${{ env.MSYSTCLDIR }}/lib --with-tclinclude=${{ env.MSYSTCLDIR }}/include
+    - name: Build extension
+      id: tcl-build-step
+      uses: apnadkarni/tcl-build-extension@main
+      with:
+        tcl-dotest: ${{ matrix.dotest }}
 
-    - name: Make
-      run: |
-        cd build
-        make
-
-    - name: Test
-      run: |
-        cd build
-        make test
-      env:
-        ERROR_ON_FAILURES: 1
