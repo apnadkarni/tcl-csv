@@ -37,9 +37,6 @@ jobs:
         tclbranch: ${{ fromJSON(github.event.inputs.tcltag) }}
 
     runs-on: ${{ matrix.os }}
-    env:
-      TCLSUBDIR: ${{ matrix.tclbranch }}
-      TCLDIR: /tmp/tcl/${{ matrix.tclbranch }}
 
     steps:
     - name: Checkout
@@ -47,52 +44,15 @@ jobs:
       with:
         submodules: true
 
-    - name: Install libtommath
-      id: tommath
-      run: |
-       sudo apt-get update
-       sudo apt-get install libtommath-dev
-
-    - name: Cache Tcl build
-      id: tcl-cache
-      uses: actions/cache@v4
+    - name: Setup Tcl
+      id: tcl-setup-step
+      uses: apnadkarni/tcl-setup@v1
       with:
-        path: ${{ env.TCLDIR }}
-        key: ${{ runner.os }}-tcl-${{ env.TCLSUBDIR }}
+        tcl-osver: ${{ matrix.os }}
+        tcl-branch: ${{ matrix.tclbranch }}
 
-    - name: Checkout Tcl
-      if: steps.tcl-cache.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+    - name: Build extension
+      id: tcl-build-step
+      uses: apnadkarni/tcl-build-extension@v1
       with:
-        repository: tcltk/tcl
-        ref: ${{ matrix.tclbranch }}
-        path: tcl-${{ matrix.tclbranch }}
-
-    - name: Build Tcl
-      if: steps.tcl-cache.outputs.cache-hit != 'true'
-      working-directory: tcl-${{ matrix.tclbranch }}/unix
-      run: |
-        mkdir build
-        cd build
-        ../configure --prefix=${{ env.TCLDIR }} || (cat config.log && exit 1)
-        make
-        make install
-
-    - name: Configure
-      run: |
-        mkdir build
-        cd build
-        ../configure --with-tcl=${{ env.TCLDIR }}/lib --enable-64bit
-
-    - name: Make
-      run: |
-        cd build
-        make
-
-    - name: Test
-      if: github.event.inputs.dotest
-      run: |
-        cd build
-        make test
-      env:
-        ERROR_ON_FAILURES: 1
+        tcl-dotest: ${{ matrix.dotest }}
