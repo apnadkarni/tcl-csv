@@ -55,7 +55,7 @@ jobs:
 
     - name: Build extension
       id: tcl-build-step
-      uses: apnadkarni/tcl-build-extension@main
+      uses: apnadkarni/tcl-build-extension@v1
       with:
         tcl-dotest: ${{ matrix.dotest }}
 
