@@ -8,10 +8,13 @@ on:
         required: true
         type: choice
         options:
-          - '["main"]'
+          - '["core-9-0-0"]'
           - '["core-8-6-13"]'
-          - '["core-8-6-13", "main"]'
-        default: '["core-8-6-13", "main"]'
+          - '["main"]'
+          - '["core-8-6-branch"]'
+          - '["core-8-6-13", "core-9-0-0"]'
+          - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
+        default: '["core-8-6-13", "core-9-0-0"]'
       arch:
         description: 'mingw32 and/or mingw64'
         required: false
@@ -20,7 +23,7 @@ on:
           - '["mingw64"]'
           - '["mingw32"]'
           - '["mingw64", "mingw32"]'
-        default: '["mingw64"]'
+        default: '["mingw64", "mingw32"]'
       dotest: # Whether tests should be run
         description: 'Run tests as well'
         required: false
@@ -74,6 +77,6 @@ jobs:
       id: tcl-build-step
       uses: apnadkarni/tcl-build-extension@v1
       with:
-        tcl-dotest: ${{ matrix.dotest }}
+        tcl-dotest: ${{ inputs.dotest }}
         tcl-toolchain: 'mingw64'
 

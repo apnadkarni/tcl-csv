@@ -8,10 +8,13 @@ on:
         required: true
         type: choice
         options:
-          - '["main"]'
+          - '["core-9-0-0"]'
           - '["core-8-6-13"]'
-          - '["core-8-6-13", "main"]'
-        default: '["core-8-6-13", "main"]'
+          - '["main"]'
+          - '["core-8-6-branch"]'
+          - '["core-8-6-13", "core-9-0-0"]'
+          - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
+        default: '["core-8-6-13", "core-9-0-0"]'
       osver:  # User input for selecting OS
         description: 'OS version'
         required: true
@@ -21,7 +24,7 @@ on:
           - '["windows-2022"]'
           - '["windows-2019"]'
           - '["windows-2019", "windows-2022"]'
-        default: '["windows-latest"]'
+        default: '["windows-2019", "windows-2022"]'
       arch:
         description: 'x86 and/or x64'
         required: false
@@ -74,5 +77,5 @@ jobs:
       id: tcl-build-step
       uses: apnadkarni/tcl-build-extension@v1
       with:
-        tcl-dotest: ${{ matrix.dotest }}
+        tcl-dotest: ${{ inputs.dotest }}
         tcl-toolchain: 'vc'
