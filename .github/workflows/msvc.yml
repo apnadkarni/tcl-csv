@@ -33,7 +33,7 @@ on:
           - '["x64"]'
           - '["x86"]'
           - '["x64", "x86"]'
-        default: '["x64"]'
+        default: '["x64", "x86"]'
       dotest: # Whether tests should be run
         description: 'Run tests as well'
         required: false
