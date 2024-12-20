@@ -75,4 +75,5 @@ jobs:
       uses: apnadkarni/tcl-build-extension@v1
       with:
         tcl-dotest: ${{ matrix.dotest }}
+        tcl-toolchain: 'mingw64'
 
