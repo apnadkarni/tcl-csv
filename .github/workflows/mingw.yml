@@ -65,7 +65,7 @@ jobs:
 
     - name: Setup Tcl
       id: tcl-setup-step
-      uses: apnadkarni/tcl-setup@main
+      uses: apnadkarni/tcl-setup@dev
       with:
         tcl-osver: 'windows-latest'
         tcl-branch: ${{ matrix.tclbranch }}
