@@ -65,7 +65,7 @@ jobs:
 
     - name: Setup Tcl
       id: tcl-setup-step
-      uses: apnadkarni/tcl-setup@v1
+      uses: apnadkarni/tcl-setup@main
       with:
         tcl-osver: 'windows-latest'
         tcl-branch: ${{ matrix.tclbranch }}
@@ -74,7 +74,7 @@ jobs:
 
     - name: Build extension
       id: tcl-build-step
-      uses: apnadkarni/tcl-build-extension@v1
+      uses: apnadkarni/tcl-build-extension@dev
       with:
         tcl-dotest: ${{ inputs.dotest }}
         tcl-toolchain: 'mingw64'
