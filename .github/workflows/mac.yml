@@ -6,12 +6,15 @@ on:
       tcltag:  # User input for selecting Tcl tag
         description: 'Tcl version'
         required: true
+        type: choice
         options:
+          - '["core-9-0-0"]'
           - '["core-8-6-13"]'
           - '["main"]'
-          - '["core-8-6-13", "main"]'
-        default: '["core-8-6-13", "main"]'
-        type: choice
+          - '["core-8-6-branch"]'
+          - '["core-8-6-13", "core-9-0-0"]'
+          - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
+        default: '["core-8-6-13", "core-9-0-0"]'
       osver:  # User input for selecting OS
         description: 'OS version'
         required: true
@@ -22,7 +25,7 @@ on:
           - '["macos-13"]'
           - '["macos-14"]'
           - '["macos-12", "macos-13", "macos-14"]'
-        default: '["macos-latest"]'
+        default: '["macos-12", "macos-13", "macos-14"]'
       dotest: # Whether tests should be run
         description: 'Run tests as well'
         required: false
@@ -51,11 +54,10 @@ jobs:
         tcl-osver: ${{ matrix.os }}
         tcl-branch: ${{ matrix.tclbranch }}
         tcl-toolchain: 'mingw64'
-        tcl-arch: ${{ matrix.arch }}
 
     - name: Build extension
       id: tcl-build-step
       uses: apnadkarni/tcl-build-extension@v1
       with:
-        tcl-dotest: ${{ matrix.dotest }}
+        tcl-dotest: ${{ inputs.dotest }}
 

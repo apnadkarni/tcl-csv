@@ -2,36 +2,61 @@ name: Mingw
 
 on:
   workflow_dispatch:
+    inputs:
+      tcltag:  # User input for selecting Tcl tag
+        description: 'Tcl version'
+        required: true
+        type: choice
+        options:
+          - '["core-9-0-0"]'
+          - '["core-8-6-13"]'
+          - '["main"]'
+          - '["core-8-6-branch"]'
+          - '["core-8-6-13", "core-9-0-0"]'
+          - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
+        default: '["core-8-6-13", "core-9-0-0"]'
+      arch:
+        description: 'mingw32 and/or mingw64'
+        required: false
+        type: choice
+        options:
+          - '["mingw64"]'
+          - '["mingw32"]'
+          - '["mingw64", "mingw32"]'
+        default: '["mingw64", "mingw32"]'
+      dotest: # Whether tests should be run
+        description: 'Run tests as well'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   build:
     runs-on: windows-latest
     strategy:
       matrix:
-        include:
-          - {os: windows-latest, tclbranch: main, arch: mingw64, cpu: x86_64}
-          - {os: windows-latest, tclbranch: main, arch: mingw32, cpu: i686}
-          - {os: windows-latest, tclbranch: core-8-6-13, arch: mingw64, cpu: x86_64}
-          - {os: windows-latest, tclbranch: core-8-6-13, arch: mingw32, cpu: i686}
+        tclbranch: ${{ fromJSON(github.event.inputs.tcltag) }}
+        arch: ${{ fromJSON(github.event.inputs.arch) }}
+
     defaults:
       run:
         shell: msys2 {0}
 
     steps:
 
-    - name: Set up msys2
+    - name: Set up msys2 for mingw32
       uses: msys2/setup-msys2@v2
       with:
         msystem: ${{ matrix.arch }}
+        pacboy: "git: make: gcc:p"
         path-type: minimal
         release: true
         update: false
-        install: mingw-w64-${{matrix.cpu}}-gcc make
+        cache: true
 
     - name: Verify toolchain
       run: |
         gcc -v
-        make -v
 
     - name: Checkout
       uses: actions/checkout@v4
@@ -42,7 +67,7 @@ jobs:
       id: tcl-setup-step
       uses: apnadkarni/tcl-setup@v1
       with:
-        tcl-osver: ${{ matrix.os }}
+        tcl-osver: 'windows-latest'
         tcl-branch: ${{ matrix.tclbranch }}
         tcl-toolchain: 'mingw64'
         tcl-arch: ${{ matrix.arch }}
@@ -51,5 +76,6 @@ jobs:
       id: tcl-build-step
       uses: apnadkarni/tcl-build-extension@v1
       with:
-        tcl-dotest: ${{ matrix.dotest }}
+        tcl-dotest: ${{ inputs.dotest }}
+        tcl-toolchain: 'mingw64'
 
