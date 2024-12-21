@@ -3,7 +3,7 @@ name: Ubuntu
 on:
   workflow_dispatch:
     inputs:
-      tcltag:  # User input for selecting Tcl tag
+      tcl-tags:  # User input for selecting Tcl tag
         description: 'Tcl version'
         required: true
         type: choice
@@ -15,7 +15,7 @@ on:
           - '["core-8-6-13", "core-9-0-0"]'
           - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
         default: '["core-8-6-13", "core-9-0-0"]'
-      osver:  # User input for selecting OS
+      runners:  # User input for selecting OS
         description: 'OS version'
         required: true
         type: choice
@@ -26,7 +26,7 @@ on:
           - '["ubuntu-24.04"]'
           - '["ubuntu-20.04", "ubuntu-22.04", "ubuntu-24.04"]'
         default: '["ubuntu-20.04", "ubuntu-22.04", "ubuntu-24.04"]'
-      dotest: # Whether tests should be run
+      run-tests: # Whether tests should be run
         description: 'Run tests as well'
         required: false
         default: true
@@ -36,10 +36,10 @@ jobs:
   build:
     strategy:
       matrix:
-        os: ${{ fromJSON(github.event.inputs.osver) }}
-        tclbranch: ${{ fromJSON(github.event.inputs.tcltag) }}
+        runner-os: ${{ fromJSON(github.event.inputs.runners) }}
+        tcl-tag: ${{ fromJSON(github.event.inputs.tcl-tags) }}
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner-os }}
 
     steps:
     - name: Checkout
@@ -49,13 +49,12 @@ jobs:
 
     - name: Setup Tcl
       id: tcl-setup-step
-      uses: apnadkarni/tcl-setup@v1
+      uses: apnadkarni/tcl-setup@main
       with:
-        tcl-osver: ${{ matrix.os }}
-        tcl-branch: ${{ matrix.tclbranch }}
+        tcl-tag: ${{ matrix.tcl-tag }}
 
     - name: Build extension
       id: tcl-build-step
-      uses: apnadkarni/tcl-build-extension@v1
+      uses: apnadkarni/tcl-build-extension@build-opts
       with:
-        tcl-dotest: ${{ inputs.dotest }}
+        run-tests: ${{ inputs.run-tests }}
