@@ -17,7 +17,7 @@ on:
           - '["core-8-6-10", "core-9-0-0"]'
           - '["core-8-6-10", "core-8-6-16", "core-9-0-0", "core-9-0-1"]'
         default: '["core-8-6-10", "core-9-0-0"]'
-      osver:  # User input for selecting OS
+      runners:  # User input for selecting OS
         description: 'OS version'
         required: true
         type: choice
