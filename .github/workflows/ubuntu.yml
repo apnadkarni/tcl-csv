@@ -47,7 +47,7 @@ jobs:
 
     - name: Setup Tcl
       id: tcl-setup-step
-      uses: apnadkarni/tcl-setup@v1
+      uses: apnadkarni/tcl-setup@tk-support
       with:
         tcl-tag: ${{ matrix.tcl-tag }}
 
