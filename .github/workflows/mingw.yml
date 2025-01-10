@@ -3,19 +3,31 @@ name: Mingw
 on:
   workflow_dispatch:
     inputs:
-      tcltag:  # User input for selecting Tcl tag
+      tcl-tags:  # User input for selecting Tcl tag
         description: 'Tcl version'
         required: true
         type: choice
         options:
           - '["core-9-0-0"]'
-          - '["core-8-6-13"]'
+          - '["core-9-0-1"]'
+          - '["core-8-6-10"]'
+          - '["core-8-6-16"]'
           - '["main"]'
           - '["core-8-6-branch"]'
-          - '["core-8-6-13", "core-9-0-0"]'
-          - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
-        default: '["core-8-6-13", "core-9-0-0"]'
-      arch:
+          - '["core-8-6-10", "core-9-0-0"]'
+          - '["core-8-6-10", "core-8-6-16", "core-9-0-0", "core-9-0-1"]'
+        default: '["core-8-6-10", "core-9-0-0"]'
+      runners:  # User input for selecting OS
+        description: 'OS version'
+        required: true
+        type: choice
+        options:
+          - '["windows-latest"]'
+          - '["windows-2022"]'
+          - '["windows-2019"]'
+          - '["windows-2019", "windows-2022"]'
+        default: '["windows-latest"]'
+      msystems:
         description: 'mingw32 and/or mingw64'
         required: false
         type: choice
@@ -24,7 +36,7 @@ on:
           - '["mingw32"]'
           - '["mingw64", "mingw32"]'
         default: '["mingw64", "mingw32"]'
-      dotest: # Whether tests should be run
+      run-tests: # Whether tests should be run
         description: 'Run tests as well'
         required: false
         default: true
@@ -32,22 +44,22 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
     strategy:
       matrix:
-        tclbranch: ${{ fromJSON(github.event.inputs.tcltag) }}
-        arch: ${{ fromJSON(github.event.inputs.arch) }}
-
+        runner-os: ${{ fromJSON(github.event.inputs.runners) }}
+        tcl-tag: ${{ fromJSON(github.event.inputs.tcl-tags) }}
+        msystem: ${{ fromJSON(github.event.inputs.msystems) }}
+    runs-on: ${{ matrix.runner-os }}
     defaults:
       run:
         shell: msys2 {0}
 
     steps:
 
-    - name: Set up msys2 for mingw32
+    - name: Set up msys2
       uses: msys2/setup-msys2@v2
       with:
-        msystem: ${{ matrix.arch }}
+        msystem: ${{ matrix.msystem }}
         pacboy: "git: make: gcc:p"
         path-type: minimal
         release: true
@@ -57,25 +69,20 @@ jobs:
     - name: Verify toolchain
       run: |
         gcc -v
-
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: true
+        make -v
 
     - name: Setup Tcl
       id: tcl-setup-step
       uses: apnadkarni/tcl-setup@v1
       with:
-        tcl-osver: 'windows-latest'
-        tcl-branch: ${{ matrix.tclbranch }}
-        tcl-toolchain: 'mingw64'
-        tcl-arch: ${{ matrix.arch }}
+        tcl-tag: ${{ matrix.tcl-tag }}
+        toolchain: 'msys2'
+        target-arch: ${{ matrix.msystem }}
 
     - name: Build extension
       id: tcl-build-step
       uses: apnadkarni/tcl-build-extension@v1
       with:
-        tcl-dotest: ${{ inputs.dotest }}
-        tcl-toolchain: 'mingw64'
+        toolchain: 'msys2'
+        run-tests: ${{ inputs.run-tests }}
 

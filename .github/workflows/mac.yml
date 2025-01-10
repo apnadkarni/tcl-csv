@@ -9,24 +9,25 @@ on:
         type: choice
         options:
           - '["core-9-0-0"]'
-          - '["core-8-6-13"]'
+          - '["core-9-0-1"]'
+          - '["core-8-6-10"]'
+          - '["core-8-6-16"]'
           - '["main"]'
           - '["core-8-6-branch"]'
-          - '["core-8-6-13", "core-9-0-0"]'
-          - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
-        default: '["core-8-6-13", "core-9-0-0"]'
+          - '["core-8-6-10", "core-9-0-0"]'
+          - '["core-8-6-10", "core-8-6-16", "core-9-0-0", "core-9-0-1"]'
+        default: '["core-8-6-10", "core-9-0-0"]'
       osver:  # User input for selecting OS
         description: 'OS version'
         required: true
         type: choice
         options:
           - '["macos-latest"]'
-          - '["macos-12"]'
           - '["macos-13"]'
           - '["macos-14"]'
-          - '["macos-12", "macos-13", "macos-14"]'
+          - '["macos-13", "macos-14"]'
         default: '["macos-12", "macos-13", "macos-14"]'
-      dotest: # Whether tests should be run
+      run-tests: # Whether tests should be run
         description: 'Run tests as well'
         required: false
         default: true
@@ -36,28 +37,21 @@ jobs:
   build:
     strategy:
       matrix:
-        os: ${{ fromJSON(github.event.inputs.osver) }}
-        tclbranch: ${{ fromJSON(github.event.inputs.tcltag) }}
-    runs-on: ${{ matrix.os }}
+        runner-os: ${{ fromJSON(github.event.inputs.runners) }}
+        tcl-tag: ${{ fromJSON(github.event.inputs.tcl-tags) }}
+    runs-on: ${{ matrix.runner-os }}
 
     steps:
-
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: true
 
     - name: Setup Tcl
       id: tcl-setup-step
       uses: apnadkarni/tcl-setup@v1
       with:
-        tcl-osver: ${{ matrix.os }}
-        tcl-branch: ${{ matrix.tclbranch }}
-        tcl-toolchain: 'mingw64'
+        tcl-tag: ${{ matrix.tcl-tag }}
 
     - name: Build extension
       id: tcl-build-step
       uses: apnadkarni/tcl-build-extension@v1
       with:
-        tcl-dotest: ${{ inputs.dotest }}
+        run-tests: ${{ inputs.run-tests }}
 
