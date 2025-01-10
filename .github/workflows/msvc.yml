@@ -36,16 +36,6 @@ on:
         required: false
         default: true
         type: boolean
-      with-dyncall: # Build with dyncall
-        description: 'Build dyncall version'
-        required: false
-        default: true
-        type: boolean
-      with-libffi: # Build with libffi
-        description: 'Build libffi version'
-        required: false
-        default: true
-        type: boolean
 
 jobs:
   build:
