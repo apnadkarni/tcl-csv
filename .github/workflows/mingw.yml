@@ -76,6 +76,7 @@ jobs:
       uses: apnadkarni/tcl-setup@v1
       with:
         tcl-tag: ${{ matrix.tcl-tag }}
+        tk-tag: main
         toolchain: 'msys2'
         target-arch: ${{ matrix.msystem }}
 
