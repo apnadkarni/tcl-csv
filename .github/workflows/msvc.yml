@@ -3,19 +3,21 @@ name: Visual C++
 on:
   workflow_dispatch:
     inputs:
-      tcltag:  # User input for selecting Tcl tag
+      tcl-tags:  # User input for selecting Tcl tag
         description: 'Tcl version'
         required: true
         type: choice
         options:
           - '["core-9-0-0"]'
-          - '["core-8-6-13"]'
+          - '["core-9-0-1"]'
+          - '["core-8-6-10"]'
+          - '["core-8-6-16"]'
           - '["main"]'
           - '["core-8-6-branch"]'
-          - '["core-8-6-13", "core-9-0-0"]'
-          - '["core-8-6-13", "core-9-0-0", "main", "core-8-6-branch"]'
-        default: '["core-8-6-13", "core-9-0-0"]'
-      osver:  # User input for selecting OS
+          - '["core-8-6-10", "core-9-0-0"]'
+          - '["core-8-6-10", "core-8-6-16", "core-9-0-0", "core-9-0-1"]'
+        default: '["core-8-6-10", "core-9-0-0"]'
+      runners:  # User input for selecting OS
         description: 'OS version'
         required: true
         type: choice
@@ -25,7 +27,7 @@ on:
           - '["windows-2019"]'
           - '["windows-2019", "windows-2022"]'
         default: '["windows-2019", "windows-2022"]'
-      arch:
+      target-architectures:
         description: 'x86 and/or x64'
         required: false
         type: choice
@@ -34,7 +36,7 @@ on:
           - '["x86"]'
           - '["x64", "x86"]'
         default: '["x64", "x86"]'
-      dotest: # Whether tests should be run
+      run-tests: # Whether tests should be run
         description: 'Run tests as well'
         required: false
         default: true
@@ -44,38 +46,28 @@ jobs:
   build:
     strategy:
       matrix:
-        os: ${{ fromJSON(github.event.inputs.osver) }}
-        tclbranch: ${{ fromJSON(github.event.inputs.tcltag) }}
-        arch: ${{ fromJSON(github.event.inputs.arch) }}
-
-    runs-on: ${{ matrix.os }}
-    env:
-      TCLSUBDIR: ${{ matrix.arch }}-${{ matrix.tclbranch }}
-      TCLDIR: C:/tcl/msvc/${{ matrix.arch }}-${{ matrix.tclbranch }}
+        runner-os: ${{ fromJSON(github.event.inputs.runners) }}
+        tcl-tag: ${{ fromJSON(github.event.inputs.tcl-tags) }}
+        target-arch: ${{ fromJSON(github.event.inputs.target-architectures) }}
+    runs-on: ${{ matrix.runner-os }}
     steps:
     # Note msvc defaults to 64-bit
     - name: Init MSVC
       uses: ilammy/msvc-dev-cmd@v1
       with:
-        arch: ${{ matrix.arch }}
-
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: true
+        arch: ${{ matrix.target-arch }}
 
     - name: Setup Tcl
       id: tcl-setup-step
       uses: apnadkarni/tcl-setup@v1
       with:
-        tcl-osver: ${{ matrix.os }}
-        tcl-branch: ${{ matrix.tclbranch }}
-        tcl-arch: ${{ matrix.arch }}
-        tcl-toolchain: 'vc'
+        tcl-tag: ${{ matrix.tcl-tag }}
+        target-arch: ${{ matrix.target-arch }}
+        toolchain: 'vc'
 
     - name: Build extension
       id: tcl-build-step
       uses: apnadkarni/tcl-build-extension@v1
       with:
-        tcl-dotest: ${{ inputs.dotest }}
-        tcl-toolchain: 'vc'
+        toolchain: 'vc'
+        run-tests: ${{ inputs.run-tests }}
