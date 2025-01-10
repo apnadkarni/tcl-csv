@@ -73,15 +73,16 @@ jobs:
 
     - name: Setup Tcl
       id: tcl-setup-step
-      uses: apnadkarni/tcl-setup@v1
+      uses: apnadkarni/tcl-setup@tk-support
       with:
         tcl-tag: ${{ matrix.tcl-tag }}
+        tk-tag: main
         toolchain: 'msys2'
         target-arch: ${{ matrix.msystem }}
 
     - name: Build extension
       id: tcl-build-step
-      uses: apnadkarni/tcl-build-extension@v1
+      uses: apnadkarni/tcl-build-extension@tk-support
       with:
         toolchain: 'msys2'
         run-tests: ${{ inputs.run-tests }}
