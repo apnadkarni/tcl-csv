@@ -50,6 +50,7 @@ jobs:
       uses: apnadkarni/tcl-setup@tk-support
       with:
         tcl-tag: ${{ matrix.tcl-tag }}
+        tk-tag: main
 
     - name: Build extension
       id: tcl-build-step
