@@ -53,6 +53,6 @@ jobs:
 
     - name: Build extension
       id: tcl-build-step
-      uses: apnadkarni/tcl-build-extension@v1
+      uses: apnadkarni/tcl-build-extension@tk-support
       with:
         run-tests: ${{ inputs.run-tests }}
