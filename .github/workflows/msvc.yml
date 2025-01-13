@@ -62,7 +62,6 @@ jobs:
       uses: apnadkarni/tcl-setup@v1
       with:
         tcl-tag: ${{ matrix.tcl-tag }}
-        tk-tag: main
         target-arch: ${{ matrix.target-arch }}
         toolchain: 'vc'
 

@@ -302,7 +302,7 @@ Tclcsv_Init(Tcl_Interp *interp)
 	return TCL_ERROR;
     }
 #else
-    if (Tcl_PkgRequire(interp, "Tcl", "8.6", 0) == NULL) {
+    if (Tcl_PkgRequire(interp, "Tcl", TCL_VERSION, 0) == NULL) {
 	return TCL_ERROR;
     }
 #endif
